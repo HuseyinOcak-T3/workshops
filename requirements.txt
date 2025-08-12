@@ -1,0 +1,7 @@
+django
+djangorestframework
+django-cors-headers
+python-decouple
+psycopg2-binary>=2.9
+djangorestframework-simplejwt>=5.2
+Pillow>=10.0

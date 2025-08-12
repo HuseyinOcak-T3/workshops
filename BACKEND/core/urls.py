@@ -1,22 +1,26 @@
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenRefreshView
-from customuser.views import CustomUserViewSet, CustomTokenObtainPairView, UserProfileView, ChangePasswordView
+from rest_framework import routers
+from customuser.views import (
+    CustomUserViewSet,
+    UserProfileView,
+    ChangePasswordView,
+    TitleViewSet, CityViewSet, AtelierViewSet,
+    CustomTokenObtainPairView,
+)
 
-
-router = DefaultRouter()
+router = routers.DefaultRouter()
 router.register(r'users', CustomUserViewSet, basename='user')
+router.register(r'titles', TitleViewSet, basename='title')
+router.register(r'cities', CityViewSet, basename='city')
+router.register(r'ateliers', AtelierViewSet, basename='atelier')
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
-
-    # API endpointleri
-    path("api/", include(router.urls)),
-    path("api/profile/", UserProfileView.as_view(), name="user-profile"),
-    path("api/change-password/", ChangePasswordView.as_view(), name="change-password"),
-
-    # JWT auth
-    path("api/token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path('admin/', admin.site.urls),
+    path('api/', include([
+        path('', include(router.urls)),
+        path('profile/', UserProfileView.as_view(), name='profile'),
+        path('password/change/', ChangePasswordView.as_view(), name='password-change'),
+        path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    ])),
 ]
