@@ -34,6 +34,20 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/components/ui/use-toast"
 
+type RolePayload =
+  | string
+  | { code?: string; name?: string; level?: number }
+  | number
+  | null
+  | undefined;
+
+const roleToText = (role: RolePayload): string => {
+  if (!role) return "";
+  if (typeof role === "string") return role;
+  if (typeof role === "object") return role.code ?? role.name ?? "";
+  return "";
+};
+
 interface SidebarProps {
   className?: string
 }
@@ -128,7 +142,10 @@ export default function DashboardLayout({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>
-                  {me?.role ? me.role.toUpperCase() : "—"}
+                  {(() => {
+                    const t = roleToText(me?.role as RolePayload);
+                    return t ? t.toUpperCase() : "—";
+                  })()}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>

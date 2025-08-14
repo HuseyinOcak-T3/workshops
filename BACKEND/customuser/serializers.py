@@ -5,16 +5,46 @@ from django.contrib.auth import password_validation
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import CustomUser, Title, City, Atelier
+from .models import (
+    CustomUser, Title, City, Atelier, Role,
+    HeardAboutUsOption, InstitutionTypeOption,
+    SchoolCategoryOption, SchoolTypeOption, StatusOption, StudentParent
+)
 
 User = get_user_model()
 
 
-# -----------------------------
-# Auth
-# -----------------------------
+class RoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ["code", "name", "level"]
+
+class StatusOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StatusOption
+        fields = ["id", "name", "is_active", "is_builtin"]
+
+class HeardAboutUsOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HeardAboutUsOption
+        fields = ["id", "name", "is_active", "is_builtin"]
+
+class InstitutionTypeOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InstitutionTypeOption
+        fields = ["id", "name", "is_active", "is_builtin"]
+
+class SchoolCategoryOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolCategoryOption
+        fields = ["id", "name", "is_active", "is_builtin"]
+
+class SchoolTypeOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolTypeOption
+        fields = ["id", "name", "is_active", "is_builtin"]
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """E-posta + şifre ile giriş, yanıta kullanıcı özeti ekler."""
 
     email = serializers.EmailField()
     password = serializers.CharField()
@@ -35,23 +65,23 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 "non_field_errors": ["Hatalı şifre."]
             })
 
-        # SimpleJWT username beklediği için ekle
         attrs["username"] = user.username
         data = super().validate(attrs)
         data["user"] = {
             "id": user.id,
             "username": user.username,
             "email": user.email,
-            "role": getattr(user, "role", None),
+            "role": {
+                "code": user.role.code,
+                "name": user.role.name,
+                "level": user.role.level,
+            } if user.role else None,
             "permission_level": getattr(user, "permission_level", None),
             "title": user.title.name if getattr(user, "title", None) else None,
         }
         return data
 
 
-# -----------------------------
-# Referans serializer'lar
-# -----------------------------
 class TitleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Title
@@ -63,38 +93,80 @@ class CitySerializer(serializers.ModelSerializer):
         model = City
         fields = ["id", "name"]
 
+class UserMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "first_name", "last_name", "email"]
+
+class AtelierMiniSerializer(serializers.ModelSerializer):
+    city = CitySerializer(read_only=True)
+    class Meta:
+        model = Atelier
+        fields = ["id", "name", "city"]
 
 class AtelierSerializer(serializers.ModelSerializer):
     city = CitySerializer(read_only=True)
     city_id = serializers.PrimaryKeyRelatedField(
         source="city", queryset=City.objects.all(), write_only=True
     )
+    responsible = UserMiniSerializer(read_only=True)
+    responsible_id = serializers.PrimaryKeyRelatedField(
+        source="responsible",
+        queryset=User.objects.filter(role__code="workshop_responsible"),
+        write_only=True, required=False, allow_null=True
+    )
 
     class Meta:
         model = Atelier
-        fields = ["id", "name", "city", "city_id"]
+        fields = ["id", "name", "city", "city_id", "responsible_id", "responsible"]
 
 
-# -----------------------------
-# Kullanıcı profil
-# -----------------------------
 class UserProfileSerializer(serializers.ModelSerializer):
+    role = RoleSerializer(read_only=True)
     title = TitleSerializer(read_only=True)
     title_id = serializers.PrimaryKeyRelatedField(
         source="title", queryset=Title.objects.all(), write_only=True,
         required=False, allow_null=True
     )
-
     atelier_city = CitySerializer(read_only=True)
     atelier_city_id = serializers.PrimaryKeyRelatedField(
         source="atelier_city", queryset=City.objects.all(), write_only=True,
         required=False, allow_null=True
     )
-
-    atelier = AtelierSerializer(read_only=True)
+    atelier = AtelierMiniSerializer(read_only=True)
     atelier_id = serializers.PrimaryKeyRelatedField(
         source="atelier", queryset=Atelier.objects.all(), write_only=True,
         required=False, allow_null=True
+    )
+    status = StatusOptionSerializer(read_only=True)
+    status_id = serializers.PrimaryKeyRelatedField(
+        source="status",
+        queryset=StatusOption.objects.all(),
+        write_only=True, required=False, allow_null=True
+    )
+
+    heard_about_us = HeardAboutUsOptionSerializer(read_only=True)
+    heard_about_us_id = serializers.PrimaryKeyRelatedField(
+        source="heard_about_us", queryset=HeardAboutUsOption.objects.all(),
+        write_only=True, required=False, allow_null=True
+    )
+
+    current_institution_type = InstitutionTypeOptionSerializer(read_only=True)
+    current_institution_type_id = serializers.PrimaryKeyRelatedField(
+        source="current_institution_type", queryset=InstitutionTypeOption.objects.all(),
+        write_only=True, required=False, allow_null=True
+    )
+
+    school_category = SchoolCategoryOptionSerializer(read_only=True)
+    school_category_id = serializers.PrimaryKeyRelatedField(
+        source="school_category", queryset=SchoolCategoryOption.objects.all(),
+        write_only=True, required=False, allow_null=True
+    )
+
+    school_type = SchoolTypeOptionSerializer(read_only=True)
+    school_type_id = serializers.PrimaryKeyRelatedField(
+        source="school_type", queryset=SchoolTypeOption.objects.all(),
+        write_only=True, required=False, allow_null=True
     )
 
     class Meta:
@@ -108,6 +180,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "city", "country",
             "is_online", "last_active", "unread_notifications",
             "last_login", "date_joined",
+            "address", "district", "nationality", "passport_number", "gender",
+            "education_level", "school_name", "faculty_institute", "department",
+            "classroom", "expected_graduation_date", "is_graduate",
+            "last_completed_education_level", "last_completed_school",
+            "last_completed_faculty_institute", "last_completed_department",
+            "last_completed_graduation_date",
+            "has_disability", "disability_description",
+            "heard_about_us", "heard_about_us_id",
+            "current_institution_type", "current_institution_type_id",
+            "school_category", "school_category_id",
+            "school_type", "school_type_id", "status", "status_id",
+            "profession", "current_institution_name", "continuing_institution",
         ]
         read_only_fields = [
             "id", "permission_level", "last_login", "date_joined",
@@ -145,3 +229,22 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError("Yeni şifreler eşleşmiyor.")
         password_validation.validate_password(attrs["new_password"])
         return attrs
+
+
+class StudentParentSerializer(serializers.ModelSerializer):
+    student = UserProfileSerializer(read_only=True)
+    student_id = serializers.PrimaryKeyRelatedField(
+        source="student",
+        queryset=User.objects.filter(role__code="student"),
+        write_only=True
+    )
+    parents = UserProfileSerializer(many=True, read_only=True)
+    parent_ids = serializers.PrimaryKeyRelatedField(
+        source="parents",
+        queryset=User.objects.filter(role__code="student_parent"),
+        write_only=True, many=True, required=False
+    )
+
+    class Meta:
+        model = StudentParent
+        fields = ["id", "student", "student_id", "parents", "parent_ids"]

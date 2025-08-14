@@ -38,20 +38,29 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        const errorMsg = data.non_field_errors?.[0] ||
-                        data.detail ||
-                        "Geçersiz e-posta veya şifre"
-        throw new Error(errorMsg)
+        const errorMsg = data?.non_field_errors?.[0] || data?.detail || "Geçersiz e-posta veya şifre";
+        throw new Error(errorMsg);
       }
 
-      localStorage.setItem("access", data.access)
-      localStorage.setItem("refresh", data.refresh)
-      localStorage.setItem("userRole", data.user.role)
-      localStorage.setItem("username", data.user.username)
-      localStorage.setItem("permissionLevel", data.user.permission_level)
+      const roleCode =
+        typeof data?.user?.role === "string"
+          ? data.user.role
+          : data?.user?.role?.code ?? "";
 
-      toast.success("Giriş başarılı! Yönlendiriliyorsunuz...")
-      router.push(`/dashboard/${data.user.role}`)
+      const roleName =
+        typeof data?.user?.role === "object" && data?.user?.role?.name
+          ? data.user.role.name
+          : null;
+
+      localStorage.setItem("access", data.access);
+      localStorage.setItem("refresh", data.refresh);
+      localStorage.setItem("userRole", roleCode);               // önce roleCode’u kaydediyoruz
+      if (roleName) localStorage.setItem("userRoleName", roleName);
+      localStorage.setItem("username", data.user.username);
+      localStorage.setItem("permissionLevel", String(data.user.permission_level)); // stringe çevir
+
+            toast.success("Giriş başarılı! Yönlendiriliyorsunuz...")
+      router.push(`/dashboard/${roleCode}`);
     } catch (error: any) {
       toast.error(error.message || "Giriş başarısız. Lütfen bilgilerinizi kontrol edin.")
     } finally {

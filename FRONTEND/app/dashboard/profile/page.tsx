@@ -39,7 +39,7 @@ type Profile = {
   profile_picture: string | null
   bio: string | null
   expertise: string | null
-  role: string
+  role: string | { code: string; name?: string; level?: number } | number
   permission_level: number
   title: Title | null        // read-only
   atelier_city: City | null
@@ -75,10 +75,18 @@ export default function ProfilePage() {
   const NONE = "__none__"
   const access = typeof window !== "undefined" ? localStorage.getItem("access") : null
 
-  // Rol rozeti (UI dosyasındaki davranışı koru)
   const roleLabel = React.useMemo(() => {
     if (!me?.role) return "Kullanıcı"
-    const r = me.role.toLowerCase()
+
+    const roleCode =
+      typeof me.role === "string"
+        ? me.role
+        : typeof me.role === "object" && me.role !== null
+          ? (me.role as any).code ?? ""
+          : String(me.role ?? "")
+
+    const r = roleCode.toString().toLowerCase()
+
     if (r.includes("admin") || pathname.includes("/dashboard/admin")) return "Komisyon Çalışanı"
     if (r.includes("super") || pathname.includes("/dashboard/superuser")) return "Yönetici"
     return "Atölye Sorumlusu"
@@ -109,7 +117,6 @@ export default function ProfilePage() {
       })
       .catch((e) => setError(e.message || "Veriler alınamadı."))
       .finally(() => setLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [access])
 
   const filteredAteliers = useMemo(() => {
@@ -119,8 +126,7 @@ export default function ProfilePage() {
 
   const onChange = (key: keyof Profile, value: any) => {
     if (!me) return
-    if (key === "title") return // title yalnızca görüntülenir
-    // Şehir değişince atölyeyi temizle
+    if (key === "title") return
     if (key === "atelier_city") {
       setMe({ ...me, atelier_city: value, atelier: null as any })
     } else {
@@ -228,7 +234,7 @@ export default function ProfilePage() {
 
     try {
       const res = await fetch(`${API}/api/change-password/`, {
-        method: "POST",
+        method: "PATCH",
         headers: {
           Authorization: `Bearer ${access}`,
           "Content-Type": "application/json",
@@ -246,7 +252,6 @@ export default function ProfilePage() {
           } else if (data?.detail) {
             msg = data.detail
           } else if (typeof data === "object" && data) {
-            // Alan bazlı hataları birleştir
             const allErrors: string[] = []
             Object.entries(data).forEach(([field, errors]) => {
               if (Array.isArray(errors)) {
@@ -258,7 +263,6 @@ export default function ProfilePage() {
             if (allErrors.length) msg = allErrors.join(" | ")
           }
         } catch {
-          /* parse edilemeyen cevaplar için default msg kalır */
         }
         throw new Error(msg)
       }
@@ -305,7 +309,6 @@ export default function ProfilePage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-5">
-        {/* SOL KART: Özet + Avatar */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>Profil Bilgileri</CardTitle>
@@ -367,7 +370,6 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* SAĞ KART: Form Tabs */}
         <Card className="md:col-span-3">
           <CardHeader>
             <CardTitle>Hesap Ayarları</CardTitle>
@@ -381,7 +383,6 @@ export default function ProfilePage() {
                 <TabsTrigger value="password">Şifre</TabsTrigger>
               </TabsList>
 
-              {/* PROFIL TAB */}
               <TabsContent value="profile" className="space-y-4 mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">

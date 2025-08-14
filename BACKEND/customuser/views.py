@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import CustomUser, Title, City, Atelier
+from .models import CustomUser, Title, City, Atelier, HeardAboutUsOption, InstitutionTypeOption, SchoolCategoryOption, SchoolTypeOption
 from .serializers import (
     CustomUserSerializer,
     UserProfileSerializer,
@@ -13,6 +13,8 @@ from .serializers import (
     TitleSerializer,
     CitySerializer,
     AtelierSerializer,
+    HeardAboutUsOptionSerializer, InstitutionTypeOptionSerializer,
+    SchoolCategoryOptionSerializer, SchoolTypeOptionSerializer,
 )
 
 User = get_user_model()
@@ -47,9 +49,14 @@ class CustomUserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        base = User.objects.select_related(
+            "role", "title", "atelier_city", "atelier",
+            "heard_about_us", "current_institution_type",
+            "school_category", "school_type",
+        ).order_by("-date_joined")
         if getattr(user, "permission_level", 8) <= 2:
-            return User.objects.all().order_by("-date_joined")
-        return User.objects.filter(id=user.id)
+            return base
+        return base.filter(id=user.id)
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated])
     def me(self, request):
@@ -122,3 +129,35 @@ class AtelierViewSet(viewsets.ModelViewSet):
         if city_id:
             qs = qs.filter(city_id=city_id)
         return qs.order_by("name")
+
+class HeardAboutUsOptionViewSet(viewsets.ModelViewSet):
+    queryset = HeardAboutUsOption.objects.filter(is_active=True).order_by("name")
+    serializer_class = HeardAboutUsOptionSerializer
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsAdminLike()]
+
+class InstitutionTypeOptionViewSet(viewsets.ModelViewSet):
+    queryset = InstitutionTypeOption.objects.filter(is_active=True).order_by("name")
+    serializer_class = InstitutionTypeOptionSerializer
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsAdminLike()]
+
+class SchoolCategoryOptionViewSet(viewsets.ModelViewSet):
+    queryset = SchoolCategoryOption.objects.filter(is_active=True).order_by("name")
+    serializer_class = SchoolCategoryOptionSerializer
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsAdminLike()]
+
+class SchoolTypeOptionViewSet(viewsets.ModelViewSet):
+    queryset = SchoolTypeOption.objects.filter(is_active=True).order_by("name")
+    serializer_class = SchoolTypeOptionSerializer
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsAdminLike()]

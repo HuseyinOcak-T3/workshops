@@ -2,11 +2,8 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
 from customuser.views import (
-    CustomUserViewSet,
-    UserProfileView,
-    ChangePasswordView,
-    TitleViewSet, CityViewSet, AtelierViewSet,
-    CustomTokenObtainPairView,
+    CustomUserViewSet, UserProfileView, ChangePasswordView, TitleViewSet, CityViewSet, AtelierViewSet, CustomTokenObtainPairView,
+    HeardAboutUsOptionViewSet, InstitutionTypeOptionViewSet, SchoolCategoryOptionViewSet, SchoolTypeOptionViewSet
 )
 
 router = routers.DefaultRouter()
@@ -14,6 +11,10 @@ router.register(r'users', CustomUserViewSet, basename='user')
 router.register(r'titles', TitleViewSet, basename='title')
 router.register(r'cities', CityViewSet, basename='city')
 router.register(r'ateliers', AtelierViewSet, basename='atelier')
+router.register(r"heard-about-us-options", HeardAboutUsOptionViewSet, basename="heardaboutusoption")
+router.register(r"institution-type-options", InstitutionTypeOptionViewSet, basename="institutiontypeoption")
+router.register(r"school-category-options", SchoolCategoryOptionViewSet, basename="schoolcategoryoption")
+router.register(r"school-type-options", SchoolTypeOptionViewSet, basename="schooltypeoption")
 
 urlpatterns = [
     path('admin/', admin.site.urls),
