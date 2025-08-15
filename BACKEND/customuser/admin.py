@@ -1,8 +1,12 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.safestring import mark_safe
+from django.utils.html import format_html, format_html_join
+from django.urls import reverse
+from django.utils.html import format_html, format_html_join
+from django.urls import reverse
 
-from .models import CustomUser, Title, City, Atelier, Role, HeardAboutUsOption, InstitutionTypeOption, SchoolCategoryOption, SchoolTypeOption, StatusOption, StudentParent
+from .models import CustomUser, Title, City, Atelier, Role, HeardAboutUsOption, InstitutionTypeOption, SchoolTypeOption, StatusOption, StudentParent, NationalityOption
 
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
@@ -37,8 +41,8 @@ class InstitutionTypeOptionAdmin(admin.ModelAdmin):
         if obj and obj.is_builtin: return False
         return super().has_delete_permission(request, obj)
 
-@admin.register(SchoolCategoryOption)
-class SchoolCategoryOptionAdmin(admin.ModelAdmin):
+@admin.register(NationalityOption)
+class NationalityOptionAdmin(admin.ModelAdmin):
     list_display = ("name", "is_builtin", "is_active")
     list_filter = ("is_builtin", "is_active")
     search_fields = ("name",)
@@ -70,11 +74,41 @@ class StatusOptionAdmin(admin.ModelAdmin):
 
 @admin.register(StudentParent)
 class StudentParentAdmin(admin.ModelAdmin):
-    list_display = ("student", )
-    search_fields = ("student__first_name", "student__last_name", "student__email",
-                     "parents__first_name", "parents__last_name", "parents__email")
+    list_display = ("student_full_name", "student_email_link", "get_parents_links")
+    search_fields = (
+        "student__first_name", "student__last_name", "student__email",
+        "parents__first_name", "parents__last_name", "parents__email"
+    )
     filter_horizontal = ("parents",)
     autocomplete_fields = ["student", "parents"]
+
+    @admin.display(description="Öğrenci")
+    def student_full_name(self, obj):
+        return f"{obj.student.first_name} {obj.student.last_name}"
+
+    @admin.display(description="Öğrenci E-posta")
+    def student_email_link(self, obj):
+        if obj.student:
+            url = reverse("admin:customuser_customuser_change", args=[obj.student.id])
+            return format_html('<a href="{}">{}</a>', url, obj.student.email)
+        return "-"
+
+    @admin.display(description="Veliler")
+    def get_parents_links(self, obj):
+        parents = obj.parents.all()
+        if parents.exists():
+            return format_html_join(
+                ', ',
+                '<a href="{}">{}</a>',
+                (
+                    (
+                        reverse("admin:customuser_customuser_change", args=[p.id]),
+                        f"{p.first_name} {p.last_name}"
+                    )
+                    for p in parents
+                )
+            )
+        return "-"
 
 @admin.register(Title)
 class TitleAdmin(admin.ModelAdmin):
@@ -109,7 +143,7 @@ class CustomUserAdmin(UserAdmin):
         "city", "country", "district", "nationality",
         "education_level", "is_graduate", "has_disability",
         "heard_about_us", "current_institution_type",
-        "school_category", "school_type",
+        "school_type",
         "is_online", "unread_notifications",
         "is_staff", "is_active",
         "last_login", "date_joined", "status",
@@ -122,7 +156,7 @@ class CustomUserAdmin(UserAdmin):
         "gender", "education_level", "last_completed_education_level",
         "is_graduate", "has_disability",
         "heard_about_us", "current_institution_type",
-        "school_category", "school_type",
+        "school_type",
         "city", "country",
         "date_joined", "last_login",
     )
@@ -139,27 +173,25 @@ class CustomUserAdmin(UserAdmin):
     list_select_related = (
         "title", "atelier_city", "atelier",
         "role", "heard_about_us", "current_institution_type",
-        "school_category", "school_type",
+        "school_type",
     )
 
-    readonly_fields = ("last_login", "date_joined", "last_active", "unread_notifications")
+    readonly_fields = ("last_login", "date_joined", "last_active", "unread_notifications", "permission_level")
 
     fieldsets = (
-        (None, {"fields": ("email", "username", "password")}),
+        (None, {"fields": ("email", "username", "password", "role", "permission_level", "status")}),
         ("Kişisel Bilgiler", {
             "fields": (
                 "first_name", "last_name",
-                "role", "permission_level", "title",
-                "tc_no", "phone", "birth_date",
+                "gender", "nationality", "phone", "title",
+                "tc_no", "passport_number", "birth_date",
                 "profile_picture",
                 "bio", "expertise",
             )
         }),
-        ("Adres & Kimlik", {
+        ("Adres", {
             "fields": (
-                "gender",
-                "address", "district", "city", "country",
-                "nationality", "passport_number",
+                 "country", "city", "district", "address",
             )
         }),
         ("Atölye", {"fields": ("atelier_city", "atelier")}),
@@ -181,7 +213,7 @@ class CustomUserAdmin(UserAdmin):
         ("Kurum / Çevre", {
             "fields": (
                 "heard_about_us", "current_institution_type",
-                "school_category", "school_type",
+                "school_type",
                 "profession", "current_institution_name", "continuing_institution",
             )
         }),

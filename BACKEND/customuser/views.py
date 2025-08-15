@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import CustomUser, Title, City, Atelier, HeardAboutUsOption, InstitutionTypeOption, SchoolCategoryOption, SchoolTypeOption
+from .models import CustomUser, Title, City, Atelier, HeardAboutUsOption, InstitutionTypeOption, SchoolTypeOption, NationalityOption
 from .serializers import (
     CustomUserSerializer,
     UserProfileSerializer,
@@ -14,26 +14,22 @@ from .serializers import (
     CitySerializer,
     AtelierSerializer,
     HeardAboutUsOptionSerializer, InstitutionTypeOptionSerializer,
-    SchoolCategoryOptionSerializer, SchoolTypeOptionSerializer,
+    SchoolTypeOptionSerializer, NationalityOptionSerializer
 )
 
 User = get_user_model()
 
-# Yetki kontrolü (permission_level: 1 en yüksek, 8 en düşük)
 class IsAdminLikeOrSelf(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj):
-        # admin-benzeri kullanıcı her şeye erişebilir
         if getattr(request.user, "permission_level", 8) <= 2:
             return True
-        # değilse sadece kendi kaydı
         return obj == request.user
 
 
 class IsAdminLike(permissions.BasePermission):
-    """is_staff yerine modeldeki permission_level'e göre yetki kontrolü."""
     def has_permission(self, request, view):
         return bool(
             request.user
@@ -52,7 +48,7 @@ class CustomUserViewSet(viewsets.ModelViewSet):
         base = User.objects.select_related(
             "role", "title", "atelier_city", "atelier",
             "heard_about_us", "current_institution_type",
-            "school_category", "school_type",
+            "school_type", "nationality",
         ).order_by("-date_joined")
         if getattr(user, "permission_level", 8) <= 2:
             return base
@@ -92,7 +88,6 @@ class ChangePasswordView(generics.UpdateAPIView):
         return Response({"detail": "Şifre başarıyla güncellendi."})
 
 
-# --- Referans viewset'ler ---
 class TitleViewSet(viewsets.ModelViewSet):
     queryset = Title.objects.filter(is_active=True).order_by("name")
     serializer_class = TitleSerializer
@@ -146,9 +141,9 @@ class InstitutionTypeOptionViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated()]
         return [permissions.IsAuthenticated(), IsAdminLike()]
 
-class SchoolCategoryOptionViewSet(viewsets.ModelViewSet):
-    queryset = SchoolCategoryOption.objects.filter(is_active=True).order_by("name")
-    serializer_class = SchoolCategoryOptionSerializer
+class NationalityOptionViewSet(viewsets.ModelViewSet):
+    queryset = NationalityOption.objects.filter(is_active=True).order_by("name")
+    serializer_class = NationalityOptionSerializer
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [permissions.IsAuthenticated()]

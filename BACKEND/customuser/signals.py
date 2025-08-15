@@ -7,9 +7,9 @@ from .models import (
     Role,
     HeardAboutUsOption,
     InstitutionTypeOption,
-    SchoolCategoryOption,
     SchoolTypeOption,
-    StatusOption
+    StatusOption,
+    NationalityOption,
 )
 
 DEFAULT_ROLES = [
@@ -44,16 +44,15 @@ DEFAULT_OPTIONS = {
         "Özel Sektör",
         "Diğer",
     ],
-    "school_category": [
-        "İlkokul",
-        "Ortaokul",
-        "Lise",
-        "Üniversite",
-    ],
     "school_type": [
         "Devlet",
         "Özel",
         "Vakıf",
+    ],
+    "nationality": [
+        "TC",
+        "KKTC",
+        "AZ",
     ],
 }
 
@@ -90,12 +89,12 @@ def ensure_default_options():
             InstitutionTypeOption.objects.update_or_create(
                 name=name, defaults={"is_builtin": True, "is_active": True}
             )
-        for name in DEFAULT_OPTIONS["school_category"]:
-            SchoolCategoryOption.objects.update_or_create(
-                name=name, defaults={"is_builtin": True, "is_active": True}
-            )
         for name in DEFAULT_OPTIONS["school_type"]:
             SchoolTypeOption.objects.update_or_create(
+                name=name, defaults={"is_builtin": True, "is_active": True}
+            )
+        for name in DEFAULT_OPTIONS["nationality"]:
+            NationalityOption.objects.update_or_create(
                 name=name, defaults={"is_builtin": True, "is_active": True}
             )
 

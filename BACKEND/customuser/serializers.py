@@ -8,7 +8,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import (
     CustomUser, Title, City, Atelier, Role,
     HeardAboutUsOption, InstitutionTypeOption,
-    SchoolCategoryOption, SchoolTypeOption, StatusOption, StudentParent
+    SchoolTypeOption, StatusOption, StudentParent, NationalityOption
 )
 
 User = get_user_model()
@@ -34,9 +34,9 @@ class InstitutionTypeOptionSerializer(serializers.ModelSerializer):
         model = InstitutionTypeOption
         fields = ["id", "name", "is_active", "is_builtin"]
 
-class SchoolCategoryOptionSerializer(serializers.ModelSerializer):
+class NationalityOptionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SchoolCategoryOption
+        model = NationalityOption
         fields = ["id", "name", "is_active", "is_builtin"]
 
 class SchoolTypeOptionSerializer(serializers.ModelSerializer):
@@ -157,9 +157,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         write_only=True, required=False, allow_null=True
     )
 
-    school_category = SchoolCategoryOptionSerializer(read_only=True)
-    school_category_id = serializers.PrimaryKeyRelatedField(
-        source="school_category", queryset=SchoolCategoryOption.objects.all(),
+    nationality = NationalityOptionSerializer(read_only=True)
+    nationality_id = serializers.PrimaryKeyRelatedField(
+        source="nationality", queryset=NationalityOption.objects.all(),
         write_only=True, required=False, allow_null=True
     )
 
@@ -180,7 +180,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "city", "country",
             "is_online", "last_active", "unread_notifications",
             "last_login", "date_joined",
-            "address", "district", "nationality", "passport_number", "gender",
+            "address", "district", "nationality", "nationality_id", "passport_number", "gender",
             "education_level", "school_name", "faculty_institute", "department",
             "classroom", "expected_graduation_date", "is_graduate",
             "last_completed_education_level", "last_completed_school",
@@ -189,7 +189,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "has_disability", "disability_description",
             "heard_about_us", "heard_about_us_id",
             "current_institution_type", "current_institution_type_id",
-            "school_category", "school_category_id",
             "school_type", "school_type_id", "status", "status_id",
             "profession", "current_institution_name", "continuing_institution",
         ]

@@ -101,6 +101,18 @@ class HeardAboutUsOption(models.Model):
 
     def __str__(self): return self.name
 
+class NationalityOption(models.Model):
+    name = models.CharField("Ad", max_length=20, unique=True)
+    is_builtin = models.BooleanField("Yerleşik", default=False)
+    is_active = models.BooleanField("Aktif", default=True)
+
+    class Meta:
+        verbose_name = "Uyruk"
+        verbose_name_plural = "Uyruklar"
+        ordering = ["name"]
+
+    def __str__(self): return self.name
+
 
 class InstitutionTypeOption(models.Model):
     name = models.CharField("Ad", max_length=120, unique=True)
@@ -115,17 +127,6 @@ class InstitutionTypeOption(models.Model):
     def __str__(self): return self.name
 
 
-class SchoolCategoryOption(models.Model):
-    name = models.CharField("Ad", max_length=120, unique=True)
-    is_builtin = models.BooleanField("Yerleşik", default=False)
-    is_active = models.BooleanField("Aktif", default=True)
-
-    class Meta:
-        verbose_name = "Okul Türü (Kategori)"
-        verbose_name_plural = "Okul Türleri (Kategori)"
-        ordering = ["name"]
-
-    def __str__(self): return self.name
 
 
 class SchoolTypeOption(models.Model):
@@ -198,8 +199,8 @@ class CustomUser(AbstractUser):
         verbose_name="Aktiflik Durumu",
     )
 
-    first_name = models.CharField("Ad", max_length=150, blank=True)
-    last_name = models.CharField("Soyad", max_length=150, blank=True)
+    first_name = models.CharField("Ad", max_length=75, blank=True)
+    last_name = models.CharField("Soyad", max_length=75, blank=True)
 
     title = models.ForeignKey(Title, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Ünvan")
 
@@ -213,7 +214,7 @@ class CustomUser(AbstractUser):
     gender = models.CharField("Cinsiyet", max_length=10, choices=Gender.choices, blank=True, null=True)
 
     birth_date = models.DateField("Doğum Tarihi", blank=True, null=True)
-    profile_picture = models.ImageField(upload_to=user_profile_upload_path, blank=True, null=True, verbose_name="Profil Foto")
+    profile_picture = models.ImageField(upload_to=user_profile_upload_path, blank=True, null=True, verbose_name="Profil Fotoğrafı")
 
     bio = models.TextField("Hakkında", blank=True, null=True)
     expertise = models.TextField("Uzmanlıklar", blank=True, null=True, help_text="Virgülle ayırın")
@@ -221,10 +222,10 @@ class CustomUser(AbstractUser):
     address = models.TextField("Adres", blank=True, null=True)
     district = models.CharField("İlçe", max_length=100, blank=True, null=True)
 
-    city = models.CharField(max_length=100, blank=True, null=True)
-    country = models.CharField(max_length=100, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True, verbose_name="Şehir")
+    country = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ülke")
 
-    nationality = models.CharField("Uyruk", max_length=100, blank=True, null=True)
+    nationality = models.ForeignKey("customuser.NationalityOption", on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Uyruk")
     passport_number = models.CharField(
         "Pasaport Numarası", max_length=20, blank=True, null=True,
         help_text="Sadece harf/rakam",
@@ -269,11 +270,6 @@ class CustomUser(AbstractUser):
         "customuser.InstitutionTypeOption",
         on_delete=models.SET_NULL, null=True, blank=True,
         verbose_name="İçerisinde Bulunduğunuz Kurum Tipi"
-    )
-    school_category = models.ForeignKey(
-        "customuser.SchoolCategoryOption",
-        on_delete=models.SET_NULL, null=True, blank=True,
-        verbose_name="Okul Türü"
     )
     school_type = models.ForeignKey(
         "customuser.SchoolTypeOption",
