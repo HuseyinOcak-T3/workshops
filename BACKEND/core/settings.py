@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'customuser',
+    'tasks',
 ]
 AUTH_USER_MODEL = "customuser.CustomUser"
 
@@ -93,7 +94,7 @@ DATABASES = {
         "NAME": "deneyap_panel",  # oluşturduğun db adı
         "USER": "deneyap_user",   # kullanıcı adı
         "PASSWORD": "qwsa1234",      # şifre
-        "HOST": "localhost",
+        "HOST": "127.0.0.1",
         "PORT": "5432",
     }
 }
