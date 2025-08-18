@@ -6,6 +6,9 @@ from customuser.views import (
     HeardAboutUsOptionViewSet, InstitutionTypeOptionViewSet, SchoolTypeOptionViewSet
 )
 
+from tasks.views import TaskViewSet
+
+
 router = routers.DefaultRouter()
 router.register(r'users', CustomUserViewSet, basename='user')
 router.register(r'titles', TitleViewSet, basename='title')
@@ -14,6 +17,8 @@ router.register(r'ateliers', AtelierViewSet, basename='atelier')
 router.register(r"heard-about-us-options", HeardAboutUsOptionViewSet, basename="heardaboutusoption")
 router.register(r"institution-type-options", InstitutionTypeOptionViewSet, basename="institutiontypeoption")
 router.register(r"school-type-options", SchoolTypeOptionViewSet, basename="schooltypeoption")
+
+router.register(r'tasks', TaskViewSet, basename='task')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
