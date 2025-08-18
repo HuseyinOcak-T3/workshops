@@ -102,7 +102,7 @@ export default function AdminDashboard() {
               Görev Ata
             </Button>
           </Link>
-          <Link href="/dashboard/admin/announcements/new">
+          <Link href="/announcements/new">
             <Button variant="outline" className="gap-1">
               <BellIcon className="h-4 w-4" />
               Duyuru Oluştur
@@ -455,7 +455,7 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <h3 className="text-lg font-medium">Son Duyurular</h3>
-                  <Link href="/dashboard/admin/announcements/new">
+                  <Link href="/announcements/new">
                     <Button className="gap-1">
                       <PlusCircleIcon className="h-4 w-4" />
                       Yeni Duyuru

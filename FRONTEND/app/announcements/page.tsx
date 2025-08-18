@@ -162,7 +162,7 @@ export default function AnnouncementsPage() {
         </div>
 
         <Button asChild>
-          <Link href="/dashboard/admin/announcements/new">
+          <Link href="/announcements/new">
             <Plus className="mr-2 h-4 w-4" />
             Yeni Duyuru
           </Link>
@@ -381,7 +381,7 @@ export default function AnnouncementsPage() {
                 Detaylarını görmek için sol taraftan bir duyuru seçin veya yeni bir duyuru oluşturun.
               </p>
               <Button asChild>
-                <Link href="/dashboard/admin/announcements/new">
+                <Link href="/announcements/new">
                   <Plus className="mr-2 h-4 w-4" />
                   Yeni Duyuru Oluştur
                 </Link>

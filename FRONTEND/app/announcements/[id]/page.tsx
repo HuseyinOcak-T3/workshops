@@ -65,7 +65,6 @@ const workshopReadStatusData = [
     id: 8,
     name: "Diyarbakır - Merkez Atölyesi",
     region: "Güneydoğu Anadolu",
-    region: "Güneydoğu Anadolu",
     read: false,
     readDate: null,
   },
