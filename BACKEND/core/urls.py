@@ -8,7 +8,6 @@ from customuser.views import (
 
 from tasks.views import TaskViewSet
 
-
 router = routers.DefaultRouter()
 router.register(r'users', CustomUserViewSet, basename='user')
 router.register(r'titles', TitleViewSet, basename='title')
