@@ -40,8 +40,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'customuser',
-    'tasks',
+    'tasks.apps.TasksConfig',
 ]
+
 AUTH_USER_MODEL = "customuser.CustomUser"
 
 MIDDLEWARE = [

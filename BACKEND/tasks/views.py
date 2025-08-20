@@ -1,82 +1,130 @@
 from django.db.models import Q
-from rest_framework import viewsets, permissions, decorators, response, status
-from .models import Task
-from .serializers import TaskSerializer
-from customuser.models import Atelier
+from rest_framework import viewsets, permissions, status, response
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied 
 
-class IsCreatorOrAssignee(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj: Task):
-        u = request.user
-        if u.is_superuser or u.is_staff or getattr(u, "permission_level", 99) <= 2:
-            return True
-        if obj.created_by_id == u.id or obj.assigned_to_id == u.id:
-            return True
-        user_atelier_id = getattr(u, 'atelier_id', None)
-        if user_atelier_id and obj.ateliers.filter(id=user_atelier_id).exists():
-            return True
-        if obj.for_all_ateliers:
-            return True
-        return False
+from .models import Task, Commission, TaskRolePermission, AtelierViewPermission
+from .serializers import (
+    TaskSerializer, TaskCreateUpdateSerializer,  
+    CommissionSerializer, TaskRolePermissionSerializer, AtelierViewPermissionSerializer
+)
+from customuser.models import Role, Atelier
+
+
+def _user_roles(user):
+    if hasattr(user, 'roles'):
+        return list(user.roles.all())
+    if getattr(user, 'role_id', None):
+        try:
+            return [Role.objects.get(pk=user.role_id)]
+        except Role.DoesNotExist:
+            return []
+    return []
+
+
+def _role_perms(user):
+    roles = _user_roles(user)
+    qs = TaskRolePermission.objects.filter(role__in=roles)
+    return {
+        'can_view': qs.filter(can_view=True).exists(),
+        'can_create': qs.filter(can_create=True).exists(),
+        'can_update': qs.filter(can_update=True).exists(),
+        'can_archive': qs.filter(can_archive=True).exists(),
+    }
+
 
 class TaskViewSet(viewsets.ModelViewSet):
-    queryset = Task.objects.select_related('assigned_to','created_by').prefetch_related('ateliers')
-    serializer_class = TaskSerializer
-    permission_classes = [permissions.IsAuthenticated, IsCreatorOrAssignee]
+    queryset = Task.objects.select_related('commission', 'created_by').prefetch_related('ateliers')
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action in ["create", "update", "partial_update"]:
+            return TaskCreateUpdateSerializer
+        return TaskSerializer
 
     def get_queryset(self):
-        qs = super().get_queryset()
         u = self.request.user
-        admin = u.is_superuser or u.is_staff or getattr(u, "permission_level", 99) <= 2
-        if not admin:
-            filt = Q(created_by=u) | Q(assigned_to=u) | Q(for_all_ateliers=True)
-            user_atelier_id = getattr(u, 'atelier_id', None)
-            if user_atelier_id:
-                filt |= Q(ateliers__id=user_atelier_id)
-            qs = qs.filter(filt).distinct()
-        return self._apply_filters(qs)
+        perms = _role_perms(u)
+        qs = super().get_queryset().filter(active=True)
 
-    def _apply_filters(self, qs):
+        filt = Q(created_by=u)
+
+        user_atelier_id = getattr(u, 'atelier_id', None)
+        if user_atelier_id:
+            filt |= Q(ateliers__id=user_atelier_id)
+
+        extra_ids = list(AtelierViewPermission.objects.filter(user=u).values_list('atelier_id', flat=True))
+        if extra_ids:
+            filt |= Q(ateliers__id__in=extra_ids)
+
+        if not perms.get('can_view', False):
+            qs = qs.filter(created_by=u)
+        else:
+            qs = qs.filter(filt)
+
         p = self.request.query_params
-        if 'status' in p: qs = qs.filter(status=p['status'])
-        if 'assigned_to' in p: qs = qs.filter(assigned_to_id=p['assigned_to'])
+        if 'status' in p:
+            qs = qs.filter(status=p['status'])
+        if 'priority' in p:
+            qs = qs.filter(priority=p['priority'])
+        if 'commission' in p:
+            qs = qs.filter(commission_id=p['commission'])
         if 'ateliers' in p:
-            ids = [i for i in p['ateliers'].split(',') if i.isdigit()]
-            if ids: qs = qs.filter(ateliers__id__in=ids)
-        if p.get('for_all_ateliers') in ('1','true','True'):
-            qs = qs.filter(for_all_ateliers=True)
+            ids = [x for x in p['ateliers'].split(',') if x.isdigit()]
+            if ids:
+                qs = qs.filter(ateliers__id__in=ids)
         q = p.get('q')
-        if q: qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q))
+        if q:
+            qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q))
+
         return qs.order_by('-created_at').distinct()
 
     def perform_create(self, serializer):
+        perms = _role_perms(self.request.user)
+        if not perms.get('can_create', False):
+            raise PermissionDenied('Görev oluşturma yetkiniz yok.')  
         serializer.save(created_by=self.request.user)
 
-    @decorators.action(detail=True, methods=['post'], url_path='assign-ateliers')
-    def assign_ateliers(self, request, pk=None):
-        ids = request.data.get('atelier_ids') or []
-        mode = (request.data.get('mode') or 'replace').lower()
-        task = self.get_object()
-        qs = Atelier.objects.filter(id__in=ids)
 
-        if mode == 'replace':
-            task.ateliers.set(qs)
-        elif mode == 'add':
-            task.ateliers.add(*qs)
-        elif mode == 'remove':
-            task.ateliers.remove(*qs)
-        else:
-            return response.Response({'detail':'invalid mode'}, status=status.HTTP_400_BAD_REQUEST)
+    def update(self, request, *args, **kwargs):
+        perms = _role_perms(request.user)
+        if not perms.get('can_update', False):
+            raise PermissionDenied('Görev güncelleme yetkiniz yok.')
+        if 'active' in request.data and not perms.get('can_archive', False):
+            raise PermissionDenied('Görevi pasife alma/aktifleştirme yetkiniz yok.')
+        return super().update(request, *args, **kwargs)
 
-        if 'for_all_ateliers' in request.data:
-            task.for_all_ateliers = bool(request.data.get('for_all_ateliers'))
-            task.save(update_fields=['for_all_ateliers'])
+    def partial_update(self, request, *args, **kwargs):
+        perms = _role_perms(request.user)
+        if not perms.get('can_update', False):
+            raise PermissionDenied('Görev güncelleme yetkiniz yok.')
+        if 'active' in request.data and not perms.get('can_archive', False):
+            raise PermissionDenied('Görevi pasife alma/aktifleştirme yetkiniz yok.')
+        return super().partial_update(request, *args, **kwargs)
 
-        return response.Response(self.get_serializer(task).data)
+    def destroy(self, request, *args, **kwargs):
+        if not _role_perms(request.user).get('can_archive', False):
+            raise PermissionDenied('Görev pasife alma yetkiniz yok.')
+        obj = self.get_object()
+        if obj.active:
+            obj.active = False
+            obj.save(update_fields=['active'])
+        return response.Response(status=status.HTTP_204_NO_CONTENT)
 
-    @decorators.action(detail=True, methods=['post'], url_path='assign-all-ateliers')
-    def assign_all_ateliers(self, request, pk=None):
-        task = self.get_object()
-        val = bool(request.data.get('value', True))
-        task.for_all_ateliers = val
-        task.save(update_fields=['for_all_ateliers'])
-        return response.Response(self.get_serializer(task).data)
+
+class CommissionViewSet(viewsets.ModelViewSet):
+    queryset = Commission.objects.all().order_by('name')
+    serializer_class = CommissionSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class TaskRolePermissionViewSet(viewsets.ModelViewSet):
+    queryset = TaskRolePermission.objects.select_related('role').all()
+    serializer_class = TaskRolePermissionSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class AtelierViewPermissionViewSet(viewsets.ModelViewSet):
+    queryset = AtelierViewPermission.objects.select_related('user', 'atelier').all()
+    serializer_class = AtelierViewPermissionSerializer
+    permission_classes = [permissions.IsAdminUser]
