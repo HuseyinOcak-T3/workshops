@@ -89,6 +89,7 @@ function Sidebar({ className }: SidebarProps) {
       { icon: Users, label: "Atölyeler", href: "/dashboard/commission/workshops" },
       { icon: CheckSquare, label: "Raporlar", href: "/dashboard/commission/reports" },
       { icon: Calendar, label: "Takvim", href: "/dashboard/commission/calendar" },
+      { icon: MessageSquare, label: "Medya ve İletişim", href: "/dashboard/commission/media-communication" },
     ],
     admin: [
       { icon: Home, label: "Ana Sayfa", href: "/dashboard/admin" },
