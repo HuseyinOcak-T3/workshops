@@ -14,9 +14,10 @@ from .models import (
 )
 @admin.register(Commission)
 class CommissionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'is_active')
-    list_filter = ('is_active',)
+    list_display = ('id', 'name', 'is_active', 'is_builtin')
+    list_filter = ('is_active', 'is_builtin',)
     search_fields = ('name',)
+    readonly_fields = ("is_builtin",)
 
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):

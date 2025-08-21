@@ -9,7 +9,6 @@ from customuser.views import (
 from tasks.views import (
     TaskViewSet,
     TaskRolePermissionViewSet,
-    AtelierViewPermissionViewSet,
 )
 
 
@@ -24,8 +23,7 @@ router.register(r"school-type-options", SchoolTypeOptionViewSet, basename="schoo
 
 router.register(r'tasks', TaskViewSet, basename='task')
 router.register(r'commissions', CommissionViewSet, basename='commission')  
-router.register(r'task-role-perms', TaskRolePermissionViewSet, basename='taskroleperm')  
-router.register(r'atelier-view-perms', AtelierViewPermissionViewSet, basename='atelierviewperm')  
+router.register(r'task-role-perms', TaskRolePermissionViewSet, basename='taskroleperm')
 
 
 urlpatterns = [

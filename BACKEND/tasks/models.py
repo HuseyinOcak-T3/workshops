@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from customuser.models import Commission
+from customuser.models import Commission, Atelier
 
 User = settings.AUTH_USER_MODEL
 
@@ -23,7 +23,7 @@ class Task(models.Model):
     priority = models.IntegerField(choices=Priority.choices, default=Priority.MEDIUM)
     due_date = models.DateField(null=True, blank=True)
 
-    ateliers = models.ManyToManyField('customuser.Atelier', blank=True, related_name='tasks')
+    ateliers = models.ManyToManyField(Atelier, blank=True, related_name='tasks')
 
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_tasks')
     commission = models.ForeignKey(Commission, null=True, blank=True, on_delete=models.SET_NULL, related_name='tasks')
@@ -34,6 +34,11 @@ class Task(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Görev"
+        verbose_name_plural = "Görevler"
+
 
     def __str__(self) -> str:
         return self.title
@@ -47,23 +52,11 @@ class TaskRolePermission(models.Model):
     can_archive = models.BooleanField(default=False)
 
     class Meta:
+        verbose_name = "Görev İzin Kuralı"
+        verbose_name_plural = "Görev İzin Kuralları"
         constraints = [
             models.UniqueConstraint(fields=['role'], name='uq_task_role_permission_role')
         ]
 
     def __str__(self) -> str:
         return f'{self.role} perms'
-
-
-class AtelierViewPermission(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='extra_atelier_perms')
-    atelier = models.ForeignKey('customuser.Atelier', on_delete=models.CASCADE, related_name='user_view_perms')
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['user', 'atelier'], name='uq_avp_user_atelier')
-        ]
-        indexes = [models.Index(fields=['user', 'atelier'])]
-
-    def __str__(self) -> str:
-        return f'{self.user_id}->{self.atelier_id}'
