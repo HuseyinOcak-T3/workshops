@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import CustomUser, Title, City, Atelier, HeardAboutUsOption, InstitutionTypeOption, SchoolTypeOption, NationalityOption
+from .models import CustomUser, Title, City, Atelier, HeardAboutUsOption, InstitutionTypeOption, SchoolTypeOption, NationalityOption, Commission
 from .serializers import (
     CustomUserSerializer,
     UserProfileSerializer,
@@ -14,10 +14,15 @@ from .serializers import (
     CitySerializer,
     AtelierSerializer,
     HeardAboutUsOptionSerializer, InstitutionTypeOptionSerializer,
-    SchoolTypeOptionSerializer, NationalityOptionSerializer
+    SchoolTypeOptionSerializer, NationalityOptionSerializer, CommissionSerializer
 )
 
 User = get_user_model()
+
+class CommissionViewSet(viewsets.ModelViewSet):
+    queryset = Commission.objects.all().order_by('name')
+    serializer_class = CommissionSerializer
+    permission_classes = [permissions.IsAdminUser]
 
 class IsAdminLikeOrSelf(permissions.BasePermission):
     def has_permission(self, request, view):

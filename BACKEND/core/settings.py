@@ -39,8 +39,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'ckeditor',
     'customuser',
     'tasks.apps.TasksConfig',
+    'announcements',
 ]
 
 AUTH_USER_MODEL = "customuser.CustomUser"
@@ -95,7 +97,7 @@ DATABASES = {
         "NAME": "deneyap_panel",  # oluşturduğun db adı
         "USER": "deneyap_user",   # kullanıcı adı
         "PASSWORD": "qwsa1234",      # şifre
-        "HOST": "127.0.0.1",
+        "HOST": "localhost",
         "PORT": "5432",
     }
 }

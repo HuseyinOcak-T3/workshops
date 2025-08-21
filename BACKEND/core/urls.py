@@ -3,12 +3,11 @@ from django.urls import path, include
 from rest_framework import routers
 from customuser.views import (
     CustomUserViewSet, UserProfileView, ChangePasswordView, TitleViewSet, CityViewSet, AtelierViewSet, CustomTokenObtainPairView,
-    HeardAboutUsOptionViewSet, InstitutionTypeOptionViewSet, SchoolTypeOptionViewSet
+    HeardAboutUsOptionViewSet, InstitutionTypeOptionViewSet, SchoolTypeOptionViewSet, CommissionViewSet
 )
 
 from tasks.views import (
     TaskViewSet,
-    CommissionViewSet,
     TaskRolePermissionViewSet,
     AtelierViewPermissionViewSet,
 )

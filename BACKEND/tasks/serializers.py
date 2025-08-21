@@ -1,7 +1,6 @@
 from rest_framework import serializers
-from .models import Task, Commission, TaskRolePermission, AtelierViewPermission
-from customuser.models import Atelier
-
+from .models import Task, TaskRolePermission, AtelierViewPermission
+from customuser.models import Atelier, Commission
 
 class StrictFieldsMixin:
     def validate(self, attrs):
@@ -15,15 +14,12 @@ class StrictFieldsMixin:
         return super().validate(attrs)
 
 
-class CommissionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Commission
-        fields = ['id', 'name', 'is_active']
-
-
 class TaskSerializer(serializers.ModelSerializer):
     ateliers = serializers.PrimaryKeyRelatedField(
         queryset=Atelier.objects.all(), many=True, required=False
+    )
+    commission = serializers.PrimaryKeyRelatedField(
+        queryset=Commission.objects.all(), many=True, required=False
     )
     commission_name = serializers.CharField(source='commission.name', read_only=True)
     created_by_full_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
@@ -46,6 +42,9 @@ class TaskSerializer(serializers.ModelSerializer):
 class TaskCreateUpdateSerializer(StrictFieldsMixin, serializers.ModelSerializer):
     ateliers = serializers.PrimaryKeyRelatedField(
         queryset=Atelier.objects.all(), many=True, required=True
+    )
+    commission = serializers.PrimaryKeyRelatedField(
+        queryset=Commission.objects.all(), many=True, required=True
     )
 
     class Meta:

@@ -3,12 +3,13 @@ from rest_framework import viewsets, permissions, status, response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied 
 
-from .models import Task, Commission, TaskRolePermission, AtelierViewPermission
+from .models import Task, TaskRolePermission, AtelierViewPermission
 from .serializers import (
     TaskSerializer, TaskCreateUpdateSerializer,  
-    CommissionSerializer, TaskRolePermissionSerializer, AtelierViewPermissionSerializer
+    TaskRolePermissionSerializer, AtelierViewPermissionSerializer
 )
-from customuser.models import Role, Atelier
+from customuser.models import Role, Atelier, Commission
+from customuser.serializers import CommissionSerializer
 
 
 def _user_roles(user):
@@ -110,12 +111,6 @@ class TaskViewSet(viewsets.ModelViewSet):
             obj.active = False
             obj.save(update_fields=['active'])
         return response.Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class CommissionViewSet(viewsets.ModelViewSet):
-    queryset = Commission.objects.all().order_by('name')
-    serializer_class = CommissionSerializer
-    permission_classes = [permissions.IsAdminUser]
 
 
 class TaskRolePermissionViewSet(viewsets.ModelViewSet):

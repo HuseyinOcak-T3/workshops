@@ -1,15 +1,8 @@
 from django.db import models
 from django.conf import settings
+from customuser.models import Commission
 
 User = settings.AUTH_USER_MODEL
-
-
-class Commission(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self) -> str:
-        return self.name
 
 
 class Task(models.Model):

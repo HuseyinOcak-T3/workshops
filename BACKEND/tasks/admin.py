@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Task, Commission, TaskRolePermission, AtelierViewPermission
+from .models import Task, TaskRolePermission, AtelierViewPermission
+from customuser.models import Commission
 
 
 @admin.register(Task)
@@ -9,13 +10,6 @@ class TaskAdmin(admin.ModelAdmin):
     search_fields = ('title', 'description')
     autocomplete_fields = ('commission', 'created_by', 'ateliers')
     filter_horizontal = ('ateliers',)
-
-
-@admin.register(Commission)
-class CommissionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'is_active')
-    list_filter = ('is_active',)
-    search_fields = ('name',)
 
 
 @admin.register(TaskRolePermission)
