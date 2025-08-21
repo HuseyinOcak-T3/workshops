@@ -2,6 +2,9 @@
 from django.db import transaction
 from django.db.models.signals import post_migrate
 from django.dispatch import receiver
+from django.apps import apps
+from django.db import connection
+from django.db.utils import ProgrammingError, OperationalError
 
 from .models import (
     Role,
@@ -98,6 +101,21 @@ def ensure_default_options():
                 name=name, defaults={"is_builtin": True, "is_active": True}
             )
 
+def seed_commissions(): # Fonksiyonu normal hale getirdik
+    try:
+        tables = connection.introspection.table_names()
+    except Exception:
+        return
+    if 'customuser_commission' not in tables:
+        return
+
+    Commission = apps.get_model('customuser', 'Commission')
+    try:
+        for name in ['Eğitim', 'İdari', 'Teknik']:
+            Commission.objects.get_or_create(name=name, defaults={'is_active': True})
+    except (ProgrammingError, OperationalError):
+        return
+
 def ensure_default_status_options():
     with transaction.atomic():
         for name in DEFAULT_STATUS_OPTIONS:
@@ -112,3 +130,4 @@ def seed_defaults_after_migrate(sender, app_config, **kwargs):
     ensure_default_roles()
     ensure_default_options()
     ensure_default_status_options()
+    seed_commissions()

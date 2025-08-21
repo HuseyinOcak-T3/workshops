@@ -4,6 +4,14 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+#BAĞIMSIZ MODEL
+class Commission(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self) -> str:
+        return self.name
+
 class Title(models.Model):
     name = models.CharField("Ünvan", max_length=120, unique=True)
     is_active = models.BooleanField(default=True)

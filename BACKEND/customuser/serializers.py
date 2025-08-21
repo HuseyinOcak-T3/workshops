@@ -8,11 +8,15 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import (
     CustomUser, Title, City, Atelier, Role,
     HeardAboutUsOption, InstitutionTypeOption,
-    SchoolTypeOption, StatusOption, StudentParent, NationalityOption
+    SchoolTypeOption, StatusOption, StudentParent, NationalityOption, Commission
 )
 
 User = get_user_model()
 
+class CommissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Commission
+        fields = ['id', 'name', 'is_active']
 
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:

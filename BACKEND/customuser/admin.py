@@ -6,7 +6,17 @@ from django.urls import reverse
 from django.utils.html import format_html, format_html_join
 from django.urls import reverse
 
-from .models import CustomUser, Title, City, Atelier, Role, HeardAboutUsOption, InstitutionTypeOption, SchoolTypeOption, StatusOption, StudentParent, NationalityOption
+from .models import (
+    CustomUser, Title, City, Atelier, Role,
+    HeardAboutUsOption, InstitutionTypeOption,
+    SchoolTypeOption, StatusOption, StudentParent, NationalityOption,
+    Commission,
+)
+@admin.register(Commission)
+class CommissionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
 
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
