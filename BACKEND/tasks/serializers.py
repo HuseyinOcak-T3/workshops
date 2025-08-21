@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from .models import Task, TaskRolePermission, AtelierViewPermission
-from customuser.models import Atelier, Commission
+from .models import Task, TaskRolePermission
+from customuser.models import Atelier, Commission, CustomUser
+
 
 class StrictFieldsMixin:
     def validate(self, attrs):
@@ -15,7 +16,7 @@ class StrictFieldsMixin:
 
 
 class TaskSerializer(serializers.ModelSerializer):
-    ateliers = serializers.PrimaryKeyRelatedField(
+    atelier = serializers.PrimaryKeyRelatedField(
         queryset=Atelier.objects.all(), many=True, required=False
     )
     commission = serializers.PrimaryKeyRelatedField(
@@ -28,7 +29,7 @@ class TaskSerializer(serializers.ModelSerializer):
         model = Task
         fields = [
             'id', 'title', 'description', 'status', 'priority', 'due_date',
-            'ateliers',
+            'atelier',
             'commission', 'commission_name',
             'active', 'send_notification', 'send_email',
             'created_by', 'created_by_full_name',
@@ -40,7 +41,7 @@ class TaskSerializer(serializers.ModelSerializer):
         )
         
 class TaskCreateUpdateSerializer(StrictFieldsMixin, serializers.ModelSerializer):
-    ateliers = serializers.PrimaryKeyRelatedField(
+    atelier = serializers.PrimaryKeyRelatedField(
         queryset=Atelier.objects.all(), many=True, required=True
     )
     commission = serializers.PrimaryKeyRelatedField(
@@ -51,24 +52,24 @@ class TaskCreateUpdateSerializer(StrictFieldsMixin, serializers.ModelSerializer)
         model = Task
         fields = (
             'title', 'description', 'status', 'priority', 'due_date',
-            'ateliers', 'commission', 'send_notification', 'send_email',
+            'atelier', 'commission', 'send_notification', 'send_email',
         )
         extra_kwargs = {
             'commission': {'required': False, 'allow_null': True},
         }
 
     def create(self, validated_data):
-        ateliers = validated_data.pop('ateliers', [])
+        atelier = validated_data.pop('atelier', [])
         task = Task.objects.create(**validated_data)
-        if ateliers:
-            task.ateliers.set(ateliers)
+        if atelier:
+            task.atelier.set(atelier)
         return task
 
     def update(self, instance, validated_data):
-        ateliers = validated_data.pop('ateliers', None)
+        atelier = validated_data.pop('atelier', None)
         instance = super().update(instance, validated_data)
-        if ateliers is not None:
-            instance.ateliers.set(ateliers)
+        if atelier is not None:
+            instance.atelier.set(atelier)
         return instance
 
 
@@ -79,12 +80,3 @@ class TaskRolePermissionSerializer(serializers.ModelSerializer):
         model = TaskRolePermission
         fields = ['id', 'role', 'role_name', 'can_view', 'can_create', 'can_update', 'can_archive']
 
-
-class AtelierViewPermissionSerializer(serializers.ModelSerializer):
-    user_full_name = serializers.CharField(source='user.get_full_name', read_only=True)
-    atelier_name = serializers.CharField(source='atelier.name', read_only=True)
-
-    class Meta:
-        model = AtelierViewPermission
-        fields = ['id', 'user', 'user_full_name', 'atelier', 'atelier_name']
- 

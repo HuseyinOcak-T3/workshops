@@ -8,6 +8,11 @@ from django.utils.translation import gettext_lazy as _
 class Commission(models.Model):
     name = models.CharField(max_length=100, unique=True)
     is_active = models.BooleanField(default=True)
+    is_builtin = models.BooleanField("Yerleşik", default=False)
+
+    class Meta:
+        verbose_name = "Komisyon"
+        verbose_name_plural = "Komisyonlar"
 
     def __str__(self) -> str:
         return self.name

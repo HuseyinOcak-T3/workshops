@@ -101,7 +101,7 @@ def ensure_default_options():
                 name=name, defaults={"is_builtin": True, "is_active": True}
             )
 
-def seed_commissions(): # Fonksiyonu normal hale getirdik
+def seed_commissions():
     try:
         tables = connection.introspection.table_names()
     except Exception:
@@ -111,8 +111,8 @@ def seed_commissions(): # Fonksiyonu normal hale getirdik
 
     Commission = apps.get_model('customuser', 'Commission')
     try:
-        for name in ['Eğitim', 'İdari', 'Teknik']:
-            Commission.objects.get_or_create(name=name, defaults={'is_active': True})
+        for name in ['Eğitim Komisyonu', 'Saha Komisyonu', 'Eğitmen Komisyonu']:
+            Commission.objects.get_or_create(name=name, defaults={"is_builtin": True, 'is_active': True})
     except (ProgrammingError, OperationalError):
         return
 

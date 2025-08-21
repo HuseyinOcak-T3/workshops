@@ -3,13 +3,13 @@ from rest_framework import viewsets, permissions, status, response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied 
 
-from .models import Task, TaskRolePermission, AtelierViewPermission
+from .models import Task, TaskRolePermission
 from .serializers import (
     TaskSerializer, TaskCreateUpdateSerializer,  
-    TaskRolePermissionSerializer, AtelierViewPermissionSerializer
+    TaskRolePermissionSerializer
 )
 from customuser.models import Role, Atelier, Commission
-from customuser.serializers import CommissionSerializer
+from customuser.serializers import CommissionSerializer, CustomUserSerializer, UserProfileSerializer
 
 
 def _user_roles(user):
@@ -54,7 +54,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         if user_atelier_id:
             filt |= Q(ateliers__id=user_atelier_id)
 
-        extra_ids = list(AtelierViewPermission.objects.filter(user=u).values_list('atelier_id', flat=True))
+        extra_ids = list(u.viewable_ateliers.values_list('id', flat=True))
         if extra_ids:
             filt |= Q(ateliers__id__in=extra_ids)
 
@@ -118,8 +118,3 @@ class TaskRolePermissionViewSet(viewsets.ModelViewSet):
     serializer_class = TaskRolePermissionSerializer
     permission_classes = [permissions.IsAdminUser]
 
-
-class AtelierViewPermissionViewSet(viewsets.ModelViewSet):
-    queryset = AtelierViewPermission.objects.select_related('user', 'atelier').all()
-    serializer_class = AtelierViewPermissionSerializer
-    permission_classes = [permissions.IsAdminUser]
