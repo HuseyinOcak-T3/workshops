@@ -22,7 +22,10 @@ User = get_user_model()
 class CommissionViewSet(viewsets.ModelViewSet):
     queryset = Commission.objects.all().order_by('name')
     serializer_class = CommissionSerializer
-    permission_classes = [permissions.IsAdminUser]
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsAdminLike()]
 
 class IsAdminLikeOrSelf(permissions.BasePermission):
     def has_permission(self, request, view):

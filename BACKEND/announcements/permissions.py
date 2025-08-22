@@ -1,14 +1,11 @@
 from .models import AnnouncementPermission, ExtraAtelierAccess
 
 def get_user_announcement_perms(user):
-    """
-    Kullanıcının rollerine göre duyuru izinlerini döndürür.
-    """
-    perms = dict(can_view=False, can_add=False, can_change=False, can_deactivate=False)
+    perms = dict(can_view=False, can_create=False, can_update=False, can_archive=False)
     if not user.is_authenticated:
         return perms
     if getattr(user, "is_superuser", False):
-        return dict(can_view=True, can_add=True, can_change=True, can_deactivate=True)
+        return dict(can_view=True, can_create=True, can_update=True, can_archive=True)
 
     if hasattr(user, "roles"):
             role_ids = list(user.roles.values_list("id", flat=True))
@@ -16,7 +13,7 @@ def get_user_announcement_perms(user):
         role_ids = [user.role_id]
     else:
         role_ids = []
-    qs = AnnouncementPermission.objects.filter(is_active=True, roles__in=role_ids).distinct()
+    qs = AnnouncementPermission.objects.filter(role_id__in=role_ids).distinct()
     for p in qs:
         perms["can_view"] = perms["can_view"] or p.can_view
         perms["can_create"] = perms["can_create"] or p.can_create
@@ -26,9 +23,7 @@ def get_user_announcement_perms(user):
 
 
 def get_visible_ateliers_for(user, own_ateliers_qs=None):
-    """
-    Kullanıcının kendi atölyeleri + ek erişim atölyeleri.
-    """
+
     ids = set()
 
     if own_ateliers_qs is not None:
