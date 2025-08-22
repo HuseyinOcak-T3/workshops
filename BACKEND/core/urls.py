@@ -6,10 +6,9 @@ from customuser.views import (
     HeardAboutUsOptionViewSet, InstitutionTypeOptionViewSet, SchoolTypeOptionViewSet, CommissionViewSet
 )
 
-from tasks.views import (
-    TaskViewSet,
-    TaskRolePermissionViewSet,
-)
+from announcements.views import AnnouncementViewSet, AnnouncementPermissionViewSet
+
+from tasks.views import TaskViewSet, TaskRolePermissionViewSet
 
 
 router = routers.DefaultRouter()
@@ -20,10 +19,12 @@ router.register(r'ateliers', AtelierViewSet, basename='atelier')
 router.register(r"heard-about-us-options", HeardAboutUsOptionViewSet, basename="heardaboutusoption")
 router.register(r"institution-type-options", InstitutionTypeOptionViewSet, basename="institutiontypeoption")
 router.register(r"school-type-options", SchoolTypeOptionViewSet, basename="schooltypeoption")
+router.register(r'commissions', CommissionViewSet, basename='commission')
 
 router.register(r'tasks', TaskViewSet, basename='task')
-router.register(r'commissions', CommissionViewSet, basename='commission')  
-router.register(r'task-role-perms', TaskRolePermissionViewSet, basename='taskroleperm')
+# router.register(r'task-role-perms', TaskRolePermissionViewSet, basename='taskroleperm')
+router.register(r'announcements', AnnouncementViewSet, basename='announcement')
+# router.register(r'announcement-role-perms', AnnouncementPermissionViewSet, basename='announcementroleperm')
 
 
 urlpatterns = [

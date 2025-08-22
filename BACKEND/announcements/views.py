@@ -2,10 +2,9 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.http import HttpResponseForbidden
-from .models import Announcement, Commission, AnnouncementRead, AnnouncementArchive
+from .models import Announcement, AnnouncementRead, AnnouncementArchive, AnnouncementPermission
 from .serializers import (
-    AnnouncementSerializer, CommissionSerializer,
-    AnnouncementReadSerializer, AnnouncementArchiveSerializer
+    AnnouncementSerializer, AnnouncementReadSerializer, AnnouncementArchiveSerializer, AnnouncementPermissionSerializer
 )
 from .permissions import get_user_announcement_perms, get_visible_ateliers_for
 from rest_framework.exceptions import PermissionDenied
@@ -31,23 +30,23 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = get_user_announcement_perms(user)
-        if not perms["can_add"]:
+        if not perms["can_create"]:
             raise PermissionDenied("Duyuru ekleme yetkiniz yok.")
         serializer.save(user=user)
 
     def perform_update(self, serializer):
         user = self.request.user
         perms = get_user_announcement_perms(user)
-        if not perms["can_change"]:
+        if not perms["can_update"]:
             raise PermissionDenied("Duyuru düzenleme yetkiniz yok.")
-        if "is_active" in getattr(serializer, "validated_data", {}) and not perms["can_deactivate"]:
+        if "is_active" in getattr(serializer, "validated_data", {}) and not perms["can_archive"]:
             raise PermissionDenied("Duyuru pasife alma/aktife alma yetkiniz yok.")
         serializer.save()
 
     def perform_destroy(self, instance):
         user = self.request.user
         perms = get_user_announcement_perms(user)
-        if not perms["can_deactivate"]:
+        if not perms["can_archive"]:
             raise PermissionDenied("Duyuru pasife alma yetkiniz yok.")
         instance.is_active = False
         instance.save()
@@ -70,8 +69,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         )
         return Response(AnnouncementArchiveSerializer(arch).data)
 
-
-class CommissionViewSet(viewsets.ModelViewSet):
-    queryset = Commission.objects.all()
-    serializer_class = CommissionSerializer
+class AnnouncementPermissionViewSet(viewsets.ModelViewSet):
+    queryset = AnnouncementPermission.objects.select_related('role').all()
+    serializer_class = AnnouncementPermissionSerializer
     permission_classes = [permissions.IsAdminUser]
