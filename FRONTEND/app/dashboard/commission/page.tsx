@@ -213,7 +213,7 @@ export default function AdminDashboard() {
                   ))}
                 </div>
                 <div className="mt-4">
-                  <Link href="/dashboard/admin/tasks">
+                  <Link href="/dashboard/superuser/tasks">
                     <Button variant="outline" className="w-full">
                       Tüm Görevleri Görüntüle
                     </Button>
@@ -387,7 +387,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="mt-6">
-                  <Link href="/dashboard/admin/tasks">
+                  <Link href="/dashboard/superuser/tasks">
                     <Button variant="outline" className="w-full">
                       Görev Yönetimi Sayfasına Git
                     </Button>

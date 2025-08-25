@@ -1,72 +1,91 @@
-'use client'
+'use client';
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import toast from "react-hot-toast"
+import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import toast from 'react-hot-toast';
 import {
   Card, CardHeader, CardTitle, CardDescription,
   CardContent, CardFooter
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Loader2 } from "lucide-react"
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
+
+import custom_axios from '@/lib/customAxios';
+import { ApiConstants } from '@/lib/ApiConstants';
+import { normalizeAndSetPerms } from "@/lib/permissions";
+
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [formData, setFormData] = useState({ email: "", password: "" })
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const safeRedirect = (next?: string | null) =>
+    next && next.startsWith('/') && !next.startsWith('//') ? next : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/token/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      })
+      const { data } = await custom_axios.post(ApiConstants.AUTH.TOKEN, formData);
 
-      const data = await res.json()
+      localStorage.setItem('access', data.access);
+      localStorage.setItem('refresh', data.refresh);
 
-      if (!res.ok) {
-        const errorMsg = data?.non_field_errors?.[0] || data?.detail || "Geçersiz e-posta veya şifre";
-        throw new Error(errorMsg);
+      const roleCode: string =
+        typeof data?.user?.role === 'string'
+          ? data.user.role
+          : data?.user?.role?.code || 'admin';
+
+      if (data?.perms) {
+        normalizeAndSetPerms(data.perms, data?.user?.role, data?.user?.permission_level);
+      } else {
+        try {
+          const prof = await custom_axios.get(ApiConstants.AUTH.PROFILE);
+          normalizeAndSetPerms(prof.data?.perms, prof.data?.role ?? data?.user?.role, prof.data?.permission_level ?? data?.user?.permission_level);
+        } catch {
+          normalizeAndSetPerms(null, data?.user?.role, data?.user?.permission_level);
+        }
       }
 
-      const roleCode =
-        typeof data?.user?.role === "string"
-          ? data.user.role
-          : data?.user?.role?.code ?? "";
+      console.log(data);
+      console.log(data.user);
 
-      const roleName =
-        typeof data?.user?.role === "object" && data?.user?.role?.name
-          ? data.user.role.name
-          : null;
+      if (data?.user?.username) {
+        localStorage.setItem('username', data.user.username);
 
-      localStorage.setItem("access", data.access);
-      localStorage.setItem("refresh", data.refresh);
-      localStorage.setItem("userRole", roleCode);               // önce roleCode’u kaydediyoruz
-      if (roleName) localStorage.setItem("userRoleName", roleName);
-      localStorage.setItem("username", data.user.username);
-      localStorage.setItem("permissionLevel", String(data.user.permission_level)); // stringe çevir
+      }
+      if (data?.user?.permission_level != null) {
+        localStorage.setItem('permissionLevel', String(data.user.permission_level));
+      }
+      localStorage.setItem('userRole', roleCode);
+      if (typeof data?.user?.role === 'object' && data.user.role?.name) {
+        localStorage.setItem('userRoleName', data.user.role.name);
+      }
 
-            toast.success("Giriş başarılı! Yönlendiriliyorsunuz...")
-      router.push(`/dashboard/${roleCode}`);
+      toast.success('Giriş başarılı!');
+      const next = safeRedirect(searchParams.get('next'));
+      router.push(next || `/dashboard/${roleCode}`);
     } catch (error: any) {
-      toast.error(error.message || "Giriş başarısız. Lütfen bilgilerinizi kontrol edin.")
+      const msg =
+        error?.response?.data?.non_field_errors?.[0] ||
+        error?.response?.data?.detail ||
+        error?.message ||
+        'Giriş başarısız. Bilgilerinizi kontrol edin.';
+      toast.error(msg);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/40 px-4">
@@ -88,6 +107,7 @@ export default function LoginPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
+                autoComplete="username"
               />
             </div>
 
@@ -100,6 +120,7 @@ export default function LoginPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
+                autoComplete="current-password"
               />
             </div>
 
@@ -107,10 +128,10 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                  Giriş yapılıyor...
+                  Giriş yapılıyor…
                 </>
               ) : (
-                "Giriş Yap"
+                'Giriş Yap'
               )}
             </Button>
           </form>
@@ -120,15 +141,6 @@ export default function LoginPage() {
           Şifrenizi mi unuttunuz? Sistem yöneticinizle iletişime geçin.
         </CardFooter>
       </Card>
-
-      {/* Test butonu */}
-      <Button
-        variant="outline"
-        onClick={() => toast.success("Test bildirimi başarılı!")}
-        className="fixed bottom-4 right-4"
-      >
-        Bildirim Testi
-      </Button>
     </div>
-  )
+  );
 }
