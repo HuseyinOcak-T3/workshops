@@ -1,4 +1,4 @@
-# Python
+# Python unnecessary files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -174,7 +174,7 @@ out/
 .nuxt
 dist
 
-# Gatsby files
+# Gatsby files 
 .cache/
 public
 
