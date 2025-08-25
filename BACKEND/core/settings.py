@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'customuser',
+    "workshops",
 ]
 AUTH_USER_MODEL = "customuser.CustomUser"
 
@@ -90,11 +91,12 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "deneyap_panel",  # oluşturduğun db adı
+        "NAME": "workshops",  # oluşturduğun db adı
         "USER": "deneyap_user",   # kullanıcı adı
-        "PASSWORD": "qwsa1234",      # şifre
+        "PASSWORD": "Abc123!",      # şifre
         "HOST": "localhost",
         "PORT": "5432",
+
     }
 }
 

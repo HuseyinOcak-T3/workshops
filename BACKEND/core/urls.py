@@ -24,3 +24,10 @@ urlpatterns = [
         path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     ])),
 ]
+
+from django.urls import path, include
+
+urlpatterns = [
+    # mevcutlar...
+    path("api/", include("workshops.urls")),  # ← ekledik
+]
