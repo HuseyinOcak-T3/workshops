@@ -4,7 +4,7 @@ from django.utils.text import slugify
 from django.utils import timezone
 from django.conf import settings
 from ckeditor.fields import RichTextField
-from customuser.models import Role, Commission  # kendi rol modelini import et
+from customuser.models import Role, Commission
 
 TURKISH_MAP = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
 

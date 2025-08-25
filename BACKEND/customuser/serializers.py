@@ -10,8 +10,25 @@ from .models import (
     HeardAboutUsOption, InstitutionTypeOption,
     SchoolTypeOption, StatusOption, StudentParent, NationalityOption, Commission
 )
+from announcements.permissions import get_user_announcement_perms
+from tasks.permissions import get_user_task_perms
 
 User = get_user_model()
+
+
+def get_all_user_permissions(user):
+    announcement_perms = get_user_announcement_perms(user)
+    task_perms = get_user_task_perms(user)
+
+    all_permissions = {}
+    for key, value in announcement_perms.items():
+        all_permissions[f"announcements_{key}"] = value
+
+    for key, value in task_perms.items():
+        all_permissions[f"tasks_{key}"] = value
+
+    return all_permissions
+
 
 class CommissionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -71,6 +88,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         attrs["username"] = user.username
         data = super().validate(attrs)
+        all_permissions = get_all_user_permissions(user)
+
         data["user"] = {
             "id": user.id,
             "username": user.username,
@@ -80,8 +99,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 "name": user.role.name,
                 "level": user.role.level,
             } if user.role else None,
-            "permission_level": getattr(user, "permission_level", None),
-            "title": user.title.name if getattr(user, "title", None) else None,
+            "profile_picture": user.profile_picture.url if user.profile_picture else None,
+            "permissions": all_permissions,
         }
         return data
 
@@ -123,6 +142,21 @@ class AtelierSerializer(serializers.ModelSerializer):
     class Meta:
         model = Atelier
         fields = ["id", "name", "city", "city_id", "responsible_id", "responsible"]
+
+
+class UserHeaderSerializer(serializers.ModelSerializer):
+    role = RoleSerializer(read_only=True)
+    permissions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            'id', 'first_name', 'last_name', 'username', 'profile_picture', 'role',
+            'permissions'
+        ]
+
+    def get_permissions(self, obj):
+        return get_all_user_permissions(obj)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
