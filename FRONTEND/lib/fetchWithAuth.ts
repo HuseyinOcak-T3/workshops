@@ -1,48 +1,68 @@
 // lib/fetchWithAuth.ts
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
-export async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  let access = localStorage.getItem("access")
-  const refresh = localStorage.getItem("refresh")
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
-  if (!access) throw new Error("Token bulunamadı")
+export async function fetchWithAuth<T>(url: string, options: RequestInit = {}): Promise<T> {
+  let access = typeof window !== "undefined" ? localStorage.getItem("access") : null;
 
-  let res = await fetch(url, {
+  if (!access) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    throw new Error("Yetkilendirme token'ı bulunamadı.");
+  }
+
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+  headers.set("Authorization", `Bearer ${access}`);
+
+  let response = await fetch(`${API_BASE_URL}${url}`, {
     ...options,
-    headers: {
-      ...(options.headers || {}),
-      Authorization: `Bearer ${access}`,
-    },
-  })
+    headers,
+  });
 
-  // Token süresi dolmuşsa yenile
-  if (res.status === 401 && refresh) {
-    const refreshRes = await fetch(`${API}/api/token/refresh/`, {
+  if (response.status === 401) {
+    const refresh = typeof window !== "undefined" ? localStorage.getItem("refresh") : null;
+    if (!refresh) {
+      localStorage.clear();
+      window.location.href = "/login?session_expired=true"; // Yönlendirme sebebi eklendi
+      throw new Error("Oturum süresi doldu, yenileme token'ı bulunamadı.");
+    }
+    const refreshRes = await fetch(`http://localhost:8000/api/token/refresh/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh }),
-    })
+    });
 
     if (refreshRes.ok) {
-      const newTokens = await refreshRes.json()
-      access = newTokens.access
-      localStorage.setItem("access", access)
+      const newTokens = await refreshRes.json();
+      access = newTokens.access;
+      if (access) {
+        localStorage.setItem("access", access);
+      }
 
-      // Yenilenmiş token ile isteği tekrar yap
-      res = await fetch(url, {
+      headers.set("Authorization", `Bearer ${access}`);
+      response = await fetch(`${API_BASE_URL}${url}`, {
         ...options,
-        headers: {
-          ...(options.headers || {}),
-          Authorization: `Bearer ${access}`,
-        },
-      })
+        headers,
+      });
     } else {
-      // Refresh token da geçersizse çıkış yap
-      localStorage.removeItem("access")
-      localStorage.removeItem("refresh")
-      window.location.href = "/login"
+      localStorage.clear();
+      window.location.href = "/login?session_expired=true"; // Yönlendirme sebebi eklendi
+      throw new Error("Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.");
     }
   }
 
-  return res
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status} - ${response.statusText}` }));
+    throw new Error(errorData.detail || "API isteği sırasında bir hata oluştu.");
+  }
+
+  if (response.status === 204) {
+    return null as T;
+  }
+
+  return response.json() as Promise<T>;
 }
