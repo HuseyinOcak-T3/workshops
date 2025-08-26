@@ -1,34 +1,58 @@
-from django.db import models
 from django.conf import settings
-from customuser.models import Commission, Atelier
-
-User = settings.AUTH_USER_MODEL
-
+from django.db import models
 
 class Task(models.Model):
-    class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        TODO = 'todo', 'To Do'
-        IN_PROGRESS = 'in_progress', 'In Progress'
-        DONE = 'done', 'Done'
+    STATUS_PENDING = "pending"
+    STATUS_IN_PROGRESS = "in_progress"
+    STATUS_DONE = "done"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_IN_PROGRESS, "In Progress"),
+        (STATUS_DONE, "Done"),
+    ]
 
-    class Priority(models.IntegerChoices):
-        LOW = 1, 'Low'
-        MEDIUM = 2, 'Medium'
-        HIGH = 3, 'High'
+    PRIORITY_LOW = 1
+    PRIORITY_MED = 2
+    PRIORITY_HIGH = 3
+    PRIORITY_CHOICES = [
+        (PRIORITY_LOW, "Low"),
+        (PRIORITY_MED, "Medium"),
+        (PRIORITY_HIGH, "High"),
+    ]
 
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
-    priority = models.IntegerField(choices=Priority.choices, default=Priority.MEDIUM)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING
+    )
+    priority = models.IntegerField(choices=PRIORITY_CHOICES, default=PRIORITY_MED)
     due_date = models.DateField(null=True, blank=True)
+    commission = models.ForeignKey(
+        "customuser.Commission",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tasks",
+    )
+    ateliers = models.ManyToManyField(
+        "customuser.Atelier", related_name="tasks", blank=True
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="created_tasks",
+    )
 
-    ateliers = models.ManyToManyField(Atelier, blank=True, related_name='tasks')
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="completed_tasks",
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
 
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_tasks')
-    commission = models.ForeignKey(Commission, null=True, blank=True, on_delete=models.SET_NULL, related_name='tasks')
-
-    active = models.BooleanField(default=True) 
+    active = models.BooleanField(default=True)
     send_notification = models.BooleanField(default=False)
     send_email = models.BooleanField(default=False)
 
@@ -45,18 +69,31 @@ class Task(models.Model):
 
 
 class TaskRolePermission(models.Model):
-    role = models.ForeignKey('customuser.Role', on_delete=models.CASCADE, related_name='task_permissions')
+    role = models.ForeignKey(
+        "customuser.Role", on_delete=models.CASCADE, related_name="task_permissions"
+    )
     can_view = models.BooleanField(default=True)
     can_create = models.BooleanField(default=False)
     can_update = models.BooleanField(default=False)
     can_archive = models.BooleanField(default=False)
 
+    def __str__(self) -> str:
+        role_name = getattr(self.role, "name", self.role_id)
+        return f"{role_name} perms"
+
+
+class AtelierViewPermission(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="atelier_view_perms",
+    )
+    atelier = models.ForeignKey(
+        "customuser.Atelier", on_delete=models.CASCADE, related_name="view_perms"
+    )
+
     class Meta:
-        verbose_name = "Görev İzin Kuralı"
-        verbose_name_plural = "Görev İzin Kuralları"
-        constraints = [
-            models.UniqueConstraint(fields=['role'], name='uq_task_role_permission_role')
-        ]
+        unique_together = ("user", "atelier")
 
     def __str__(self) -> str:
-        return f'{self.role} perms'
+        return f"{self.user_id} -> {self.atelier_id}"
