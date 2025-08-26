@@ -15,10 +15,6 @@ from tasks.permissions import get_user_task_perms
 
 User = get_user_model()
 
-class CommissionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Commission
-        fields = ['id', 'name', 'is_active']
 
 def get_all_user_permissions(user):
     announcement_perms = get_user_announcement_perms(user)
