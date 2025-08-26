@@ -1,80 +1,68 @@
-const RAW = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
-const API = RAW.endsWith("/api") ? RAW : `${RAW}/api`;
+// lib/fetchWithAuth.ts
 
-function abs(urlOrPath: string) {
-  if (/^https?:\/\//i.test(urlOrPath)) return urlOrPath;
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
-  const clean = urlOrPath.replace(/^\/+/, "");
-  const path = clean.startsWith("api/") ? clean.slice(4) : clean;
-  return `${API}/${path}`;
-}
+export async function fetchWithAuth<T>(url: string, options: RequestInit = {}): Promise<T> {
+  let access = typeof window !== "undefined" ? localStorage.getItem("access") : null;
 
-async function ensureJson(res: Response) {
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText}${text ? ` - ${text}` : ""}`);
-  }
-  const ct = res.headers.get("content-type") || "";
-  return ct.includes("application/json") ? res.json() : null;
-}
-
-export async function fetchWithAuth(urlOrPath: string, init: RequestInit = {}) {
-  if (typeof window === "undefined") throw new Error("client-side kullan");
-  let access = localStorage.getItem("access");
-  const refresh = localStorage.getItem("refresh");
   if (!access) {
-    window.location.href = "/login";
-    throw new Error("Token yok");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    throw new Error("Yetkilendirme token'ı bulunamadı.");
   }
 
-  const url = abs(urlOrPath);
-
-  const baseHeaders: HeadersInit = {
-    ...(init.headers || {}),
-    Authorization: `Bearer ${access}`,
-  };
-  if (init.body && !("Content-Type" in (init.headers || {}))) {
-    (baseHeaders as any)["Content-Type"] = "application/json";
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
   }
+  headers.set("Authorization", `Bearer ${access}`);
 
-  let res = await fetch(url, { ...init, headers: baseHeaders });
+  let response = await fetch(`${API_BASE_URL}${url}`, {
+    ...options,
+    headers,
+  });
 
-  if (res.status === 401 && refresh) {
-    const r = await fetch(`${API}/token/refresh/`, {
+  if (response.status === 401) {
+    const refresh = typeof window !== "undefined" ? localStorage.getItem("refresh") : null;
+    if (!refresh) {
+      localStorage.clear();
+      window.location.href = "/login?session_expired=true"; // Yönlendirme sebebi eklendi
+      throw new Error("Oturum süresi doldu, yenileme token'ı bulunamadı.");
+    }
+    const refreshRes = await fetch(`http://localhost:8000/api/token/refresh/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh }),
     });
 
-    if (!r.ok) {
-      localStorage.removeItem("access");
-      localStorage.removeItem("refresh");
-      window.location.href = "/login";
-      throw new Error("Oturum süresi doldu");
+    if (refreshRes.ok) {
+      const newTokens = await refreshRes.json();
+      access = newTokens.access;
+      if (access) {
+        localStorage.setItem("access", access);
+      }
+
+      headers.set("Authorization", `Bearer ${access}`);
+      response = await fetch(`${API_BASE_URL}${url}`, {
+        ...options,
+        headers,
+      });
+    } else {
+      localStorage.clear();
+      window.location.href = "/login?session_expired=true"; // Yönlendirme sebebi eklendi
+      throw new Error("Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.");
     }
-
-    const data = await r.json();
-    access = data?.access;
-    if (!access) throw new Error("Access token alınamadı");
-    localStorage.setItem("access", access);
-
-    const retryHeaders: HeadersInit = {
-      ...(init.headers || {}),
-      Authorization: `Bearer ${access}`,
-    };
-    if (init.body && !("Content-Type" in (init.headers || {}))) {
-      (retryHeaders as any)["Content-Type"] = "application/json";
-    }
-
-    res = await fetch(url, { ...init, headers: retryHeaders });
   }
 
-  return res;
-}
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status} - ${response.statusText}` }));
+    throw new Error(errorData.detail || "API isteği sırasında bir hata oluştu.");
+  }
 
-export async function fetchJson(urlOrPath: string, init: RequestInit = {}) {
-  const res = await fetchWithAuth(urlOrPath, init);
-  return ensureJson(res);
-}
+  if (response.status === 204) {
+    return null as T;
+  }
 
-export { API };
+  return response.json() as Promise<T>;
+}

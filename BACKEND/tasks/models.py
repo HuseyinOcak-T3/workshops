@@ -27,7 +27,6 @@ class Task(models.Model):
     )
     priority = models.IntegerField(choices=PRIORITY_CHOICES, default=PRIORITY_MED)
     due_date = models.DateField(null=True, blank=True)
-
     commission = models.ForeignKey(
         "customuser.Commission",
         null=True,
@@ -59,6 +58,11 @@ class Task(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Görev"
+        verbose_name_plural = "Görevler"
+
 
     def __str__(self) -> str:
         return self.title

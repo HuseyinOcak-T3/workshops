@@ -26,4 +26,4 @@ class TaskRolePermissionAdmin(admin.ModelAdmin):
 class AtelierViewPermissionAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "atelier")
     search_fields = ("user__first_name", "user__last_name", "user__email", "atelier__name")
-    
+   

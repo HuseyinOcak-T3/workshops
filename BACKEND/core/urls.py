@@ -3,12 +3,12 @@ from django.urls import path, include
 from rest_framework import routers
 from customuser.views import (
     CustomUserViewSet, UserProfileView, ChangePasswordView, TitleViewSet, CityViewSet, AtelierViewSet, CustomTokenObtainPairView,
-    HeardAboutUsOptionViewSet, InstitutionTypeOptionViewSet, SchoolTypeOptionViewSet, CommissionViewSet
+    HeardAboutUsOptionViewSet, InstitutionTypeOptionViewSet, SchoolTypeOptionViewSet, CommissionViewSet, UserHeaderView
 )
 
 from announcements.views import AnnouncementViewSet, AnnouncementPermissionViewSet
-
 from tasks.views import TaskViewSet, TaskRolePermissionViewSet , AtelierViewPermissionViewSet
+
 
 
 router = routers.DefaultRouter()
@@ -33,6 +33,7 @@ urlpatterns = [
     path('api/', include([
         path('', include(router.urls)),
         path('profile/', UserProfileView.as_view(), name='profile'),
+        path('profile/header/', UserHeaderView.as_view(), name='profile-header'),
         path('password/change/', ChangePasswordView.as_view(), name='password-change'),
         path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     ])),
