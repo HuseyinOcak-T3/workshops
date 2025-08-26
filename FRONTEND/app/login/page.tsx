@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import toast from "react-hot-toast"
 import {
   Card, CardHeader, CardTitle, CardDescription,
@@ -11,61 +11,63 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
+import { useAuth } from "@/app/context/AuthContext"
+import { API_BASE_URL } from "@/lib/fetchWithAuth" // <-- API_BASE_URL İMPORT EDİLDİ
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [formData, setFormData] = useState({ email: "", password: "" })
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, user, loading: authLoading } = useAuth();
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      const roleCode = user.role?.code || 'student';
+      router.replace(`/dashboard/${roleCode}`);
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (searchParams.get('session_expired')) {
+        toast.error("Oturum süreniz doldu. Lütfen tekrar giriş yapın.");
+    }
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/token/", {
+      const res = await fetch(`${API_BASE_URL}/token/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
-      })
+      });
 
-      const data = await res.json()
+      const data = await res.json();
 
       if (!res.ok) {
         const errorMsg = data?.non_field_errors?.[0] || data?.detail || "Geçersiz e-posta veya şifre";
         throw new Error(errorMsg);
       }
 
-      const roleCode =
-        typeof data?.user?.role === "string"
-          ? data.user.role
-          : data?.user?.role?.code ?? "";
+      login(data);
 
-      const roleName =
-        typeof data?.user?.role === "object" && data?.user?.role?.name
-          ? data.user.role.name
-          : null;
-
-      localStorage.setItem("access", data.access);
-      localStorage.setItem("refresh", data.refresh);
-      localStorage.setItem("userRole", roleCode);               // önce roleCode’u kaydediyoruz
-      if (roleName) localStorage.setItem("userRoleName", roleName);
-      localStorage.setItem("username", data.user.username);
-      localStorage.setItem("permissionLevel", String(data.user.permission_level)); // stringe çevir
-
-            toast.success("Giriş başarılı! Yönlendiriliyorsunuz...")
-      router.push(`/dashboard/${roleCode}`);
     } catch (error: any) {
       toast.error(error.message || "Giriş başarısız. Lütfen bilgilerinizi kontrol edin.")
     } finally {
       setLoading(false)
     }
+  }
+
+  if (authLoading || user) {
+      return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   return (
@@ -120,15 +122,6 @@ export default function LoginPage() {
           Şifrenizi mi unuttunuz? Sistem yöneticinizle iletişime geçin.
         </CardFooter>
       </Card>
-
-      {/* Test butonu */}
-      <Button
-        variant="outline"
-        onClick={() => toast.success("Test bildirimi başarılı!")}
-        className="fixed bottom-4 right-4"
-      >
-        Bildirim Testi
-      </Button>
     </div>
   )
 }

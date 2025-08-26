@@ -4,17 +4,16 @@ from django.utils.text import slugify
 from django.utils import timezone
 from django.conf import settings
 from ckeditor.fields import RichTextField
-from customuser.models import Role, Commission  # kendi rol modelini import et
 
 TURKISH_MAP = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
 
 
 class AnnouncementPermission(models.Model):
-    role = models.ForeignKey('customuser.Role', on_delete=models.CASCADE, related_name='announcements_permissions')
-    can_view = models.BooleanField(default=True)
-    can_create = models.BooleanField(default=False)
-    can_update = models.BooleanField(default=False)
-    can_archive = models.BooleanField(default=False)
+    role = models.ForeignKey('customuser.Role', on_delete=models.CASCADE, related_name='announcements_permissions', verbose_name="Rol")
+    can_view = models.BooleanField(default=True, verbose_name="Görüntüleyebilir")
+    can_create = models.BooleanField(default=False, verbose_name="Oluşturabilir")
+    can_update = models.BooleanField(default=False, verbose_name="Güncelleyebilir")
+    can_archive = models.BooleanField(default=False, verbose_name="Arşivleyebilir/Silebilir")
 
     class Meta:
         verbose_name = "Duyuru İzin Kuralı"
@@ -24,7 +23,7 @@ class AnnouncementPermission(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f'{self.role} perms'
+        return f'{self.role} İzinleri'
 
 
 class ExtraAtelierAccess(models.Model):
@@ -38,7 +37,8 @@ class ExtraAtelierAccess(models.Model):
     note = models.CharField(max_length=200, blank=True, null=True, verbose_name="Not")
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Oluşturulma Zamanı")
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+", verbose_name="Oluşturan"
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+", verbose_name="Oluşturan", editable=False
     )
 
     class Meta:
@@ -47,9 +47,15 @@ class ExtraAtelierAccess(models.Model):
         indexes = [models.Index(fields=["user", "is_active"])]
 
     def __str__(self):
-        return f"{self.user} - {self.ateliers.count()} atölye"
+        return f"{self.user} için {self.ateliers.count()} ek atölye yetkisi"
 
 
+class AnnouncementManager(models.Manager):
+    def active(self):
+        return self.get_queryset().filter(is_active=True, is_archived=False)
+
+    def archived(self):
+        return self.get_queryset().filter(is_archived=True)
 
 class Announcement(models.Model):
     class Priority(models.TextChoices):
@@ -77,7 +83,7 @@ class Announcement(models.Model):
         verbose_name="Atölyeler",
     )
     commission = models.ForeignKey(
-        Commission,
+        'customuser.Commission',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -105,35 +111,25 @@ class Announcement(models.Model):
         verbose_name="Yayınlanma Tarihi", default=timezone.now, blank=True, null=True
     )
     created_at = models.DateTimeField(
-        verbose_name="Oluşturulma Zamanı", default=timezone.now, blank=True, null=True
+        verbose_name="Oluşturulma Zamanı", auto_now_add=True, editable=False
     )
     updated_at = models.DateTimeField(
         verbose_name="Güncellenme Zamanı", auto_now=True, blank=True, null=True
     )
+    slug = models.SlugField(unique=True, editable=True, max_length=130, verbose_name="URL Uzantısı")
 
-    slug = models.SlugField(unique=True, editable=False, max_length=130, verbose_name="Slug")
+    objects = AnnouncementManager()
 
     class Meta:
         verbose_name = "Duyuru"
         verbose_name_plural = "Duyurular"
+        ordering = ['-publication_date']
         permissions = (
             ("deactivate_announcement", "Duyuruyu pasife alma izni"),
         )
 
     def __str__(self):
         return self.title
-
-    def get_absolute_url(self):
-        return reverse("announcements:detail", args=[str(self.slug)])
-
-    def get_update_url(self):
-        return reverse("announcements:update", kwargs={"slug": self.slug})
-
-    def get_delete_url(self):
-        return reverse("announcements:delete", kwargs={"slug": self.slug})
-
-    def get_create_url(self):
-        return reverse("announcements:create")
 
     def get_unique_slug(self):
         base = (self.title or "duyuru").translate(TURKISH_MAP)
@@ -147,10 +143,6 @@ class Announcement(models.Model):
         return unique_slug
 
     def save(self, *args, **kwargs):
-        if not self.publication_date:
-            self.publication_date = timezone.now()
-        if not self.created_at:
-            self.created_at = timezone.now()
         if not self.slug:
             self.slug = self.get_unique_slug()
         super().save(*args, **kwargs)
@@ -169,6 +161,7 @@ class AnnouncementRead(models.Model):
     class Meta:
         verbose_name = "Duyuru Okunma Kaydı"
         verbose_name_plural = "Duyuru Okunma Kayıtları"
+        ordering = ['-read_at']
         constraints = [
             models.UniqueConstraint(
                 fields=["announcement", "user"], name="uniq_read_ann_user"
@@ -180,7 +173,8 @@ class AnnouncementRead(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user} - {self.announcement} - {'okundu' if self.is_read else 'okunmadı'}"
+        status = 'okundu' if self.is_read else 'okunmadı'
+        return f"{self.user} - {self.announcement.title} - {status}"
 
 
 class AnnouncementArchive(models.Model):
@@ -196,6 +190,7 @@ class AnnouncementArchive(models.Model):
     class Meta:
         verbose_name = "Duyuru Arşiv Kaydı"
         verbose_name_plural = "Duyuru Arşiv Kayıtları"
+        ordering = ['-archived_at']
         constraints = [
             models.UniqueConstraint(
                 fields=["announcement", "user"], name="uniq_archive_ann_user"
@@ -207,4 +202,5 @@ class AnnouncementArchive(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user} - {self.announcement} - {'arşivli' if self.is_archived else 'arşivli değil'}"
+        status = 'arşivli' if self.is_archived else 'arşivli değil'
+        return f"{self.user} - {self.announcement.title} - {status}"

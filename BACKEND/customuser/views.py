@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.views import APIView
 
 from .models import CustomUser, Title, City, Atelier, HeardAboutUsOption, InstitutionTypeOption, SchoolTypeOption, NationalityOption, Commission
 from .serializers import (
@@ -14,7 +15,7 @@ from .serializers import (
     CitySerializer,
     AtelierSerializer,
     HeardAboutUsOptionSerializer, InstitutionTypeOptionSerializer,
-    SchoolTypeOptionSerializer, NationalityOptionSerializer, CommissionSerializer
+    SchoolTypeOptionSerializer, NationalityOptionSerializer, CommissionSerializer, UserHeaderSerializer
 )
 
 User = get_user_model()
@@ -71,6 +72,12 @@ class CustomUserViewSet(viewsets.ModelViewSet):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
+class UserHeaderView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserHeaderSerializer(request.user)
+        return Response(serializer.data)
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
