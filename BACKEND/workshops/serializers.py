@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Workshop, ResponsiblePerson
 from .models import EquipmentRequest, MaintenanceRequest
-
+#burası
 class ResponsiblePersonSerializer(serializers.ModelSerializer):
     class Meta:
         model = ResponsiblePerson

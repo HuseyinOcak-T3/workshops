@@ -1,5 +1,6 @@
 from django.shortcuts import render
 # Create your views here.
+#burası 
 from rest_framework import generics, permissions
 from .models import Workshop
 from .serializers import WorkshopDetailSerializer

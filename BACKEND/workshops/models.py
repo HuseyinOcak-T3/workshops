@@ -1,5 +1,5 @@
 from django.db import models
-
+#burası
 # Create your models here.
 from django.db import models
 
