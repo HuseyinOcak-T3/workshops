@@ -39,7 +39,7 @@ export default function AnnouncementDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { perms } = useAuth();
+  const { user, perms } = useAuth();
   const announcementId = params.id as string;
 
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
@@ -55,6 +55,15 @@ export default function AnnouncementDetailPage() {
       try {
         const data = await fetchWithAuth<Announcement>(`/announcements/${announcementId}/`);
         setAnnouncement(data);
+        if (user?.role?.code === 'workshop_responsible') {
+          try {
+            await fetchWithAuth(`/announcements/${data.id}/mark_read/`, {
+              method: 'POST',
+            });
+          } catch (readError) {
+            console.error("Duyuru okundu olarak işaretlenemedi:", readError);
+          }
+        }
       } catch (error: any) {
         toast({ title: "Hata", description: `Duyuru yüklenemedi: ${error.message}`, variant: "destructive" });
         router.push("/announcements");

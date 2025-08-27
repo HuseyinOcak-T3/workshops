@@ -14,6 +14,7 @@ class AnnouncementPermission(models.Model):
     can_create = models.BooleanField(default=False, verbose_name="Oluşturabilir")
     can_update = models.BooleanField(default=False, verbose_name="Güncelleyebilir")
     can_archive = models.BooleanField(default=False, verbose_name="Arşivleyebilir/Silebilir")
+    can_view_stats = models.BooleanField(default=False, verbose_name="İstatistikleri Görüntüleyebilir")
 
     class Meta:
         verbose_name = "Duyuru İzin Kuralı"
@@ -174,33 +175,4 @@ class AnnouncementRead(models.Model):
 
     def __str__(self):
         status = 'okundu' if self.is_read else 'okunmadı'
-        return f"{self.user} - {self.announcement.title} - {status}"
-
-
-class AnnouncementArchive(models.Model):
-    announcement = models.ForeignKey(
-        Announcement, on_delete=models.CASCADE, related_name="archives", verbose_name="Duyuru"
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="announcement_archives", verbose_name="Kullanıcı"
-    )
-    is_archived = models.BooleanField(default=True, verbose_name="Arşivlendi mi?")
-    archived_at = models.DateTimeField(default=timezone.now, verbose_name="Arşivlenme Zamanı")
-
-    class Meta:
-        verbose_name = "Duyuru Arşiv Kaydı"
-        verbose_name_plural = "Duyuru Arşiv Kayıtları"
-        ordering = ['-archived_at']
-        constraints = [
-            models.UniqueConstraint(
-                fields=["announcement", "user"], name="uniq_archive_ann_user"
-            )
-        ]
-        indexes = [
-            models.Index(fields=["user", "announcement"]),
-            models.Index(fields=["announcement", "is_archived"]),
-        ]
-
-    def __str__(self):
-        status = 'arşivli' if self.is_archived else 'arşivli değil'
         return f"{self.user} - {self.announcement.title} - {status}"

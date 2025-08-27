@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Announcement, AnnouncementPermission, ExtraAtelierAccess,
-    AnnouncementRead, AnnouncementArchive
+    AnnouncementRead
 )
 
 class AnnouncementReadInline(admin.TabularInline):
@@ -16,16 +16,6 @@ class AnnouncementReadInline(admin.TabularInline):
         return False
 
 
-class AnnouncementArchiveInline(admin.TabularInline):
-    model = AnnouncementArchive
-    extra = 0
-    readonly_fields = ('user', 'archived_at', 'is_archived')
-    can_delete = False
-    verbose_name = "Arşiv Kaydı"
-    verbose_name_plural = "Arşiv Kayıtları"
-
-    def has_add_permission(self, request, obj=None):
-        return False
 
 
 @admin.register(Announcement)
@@ -63,7 +53,7 @@ class AnnouncementAdmin(admin.ModelAdmin):
     )
 
     filter_horizontal = ('ateliers',)
-    inlines = [AnnouncementReadInline, AnnouncementArchiveInline]
+    inlines = [AnnouncementReadInline]
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
@@ -83,7 +73,7 @@ class AnnouncementAdmin(admin.ModelAdmin):
 
 @admin.register(AnnouncementPermission)
 class AnnouncementPermissionAdmin(admin.ModelAdmin):
-    list_display = ('role', 'can_view', 'can_create', 'can_update', 'can_archive')
+    list_display = ('role', 'can_view', 'can_create', 'can_update', 'can_archive', 'can_view_stats')
     list_filter = ('role',)
     search_fields = ('role__name',)
 
@@ -115,16 +105,3 @@ class AnnouncementReadAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
-
-@admin.register(AnnouncementArchive)
-class AnnouncementArchiveAdmin(admin.ModelAdmin):
-    list_display = ('announcement', 'user', 'is_archived', 'archived_at')
-    list_filter = ('is_archived', 'announcement__title')
-    search_fields = ('announcement__title', 'user__username')
-    readonly_fields = ('announcement', 'user', 'archived_at', 'is_archived')
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False

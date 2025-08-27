@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Announcement, AnnouncementPermission, ExtraAtelierAccess,
-    AnnouncementRead, AnnouncementArchive
+    AnnouncementRead
 )
 from customuser.serializers import UserMiniSerializer, AtelierMiniSerializer
 from customuser.models import Atelier, Commission
@@ -16,7 +16,7 @@ class AnnouncementSerializer(serializers.ModelSerializer):
     user = UserMiniSerializer(read_only=True)
     commission = CommissionSerializer(read_only=True)
     commission_id = serializers.PrimaryKeyRelatedField(
-        queryset=Commission.objects.all(), source="commission", write_only=True, allow_null=True, required=False
+        queryset=Commission.objects.all(), source="commission", write_only=True
     )
 
     ateliers = AtelierMiniSerializer(read_only=True, many=True)
@@ -74,10 +74,4 @@ class ExtraAtelierAccessSerializer(serializers.ModelSerializer):
 class AnnouncementReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnnouncementRead
-        fields = "__all__"
-
-
-class AnnouncementArchiveSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AnnouncementArchive
         fields = "__all__"

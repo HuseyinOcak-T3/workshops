@@ -15,16 +15,26 @@ import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { fetchWithAuth } from "@/lib/fetchWithAuth"
 import { useAuth } from "@/app/context/AuthContext"
+import { Search } from "lucide-react"
 
 // Tipler
 interface Workshop { id: number; name: string; }
 interface Commission { id: number; name: string; }
+interface AnnouncementData {
+  title: string;
+  text: string;
+  commission: Commission | null;
+  is_active: boolean;
+  ateliers: Workshop[];
+  priority: string;
+}
 interface FormData {
   title: string;
   text: string;
   commission_id: string | null;
   is_active: boolean;
   atelier_ids: number[];
+  priority: string;
 }
 
 export default function EditAnnouncementPage() {
@@ -36,6 +46,7 @@ export default function EditAnnouncementPage() {
 
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [workshopSearch, setWorkshopSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -44,6 +55,7 @@ export default function EditAnnouncementPage() {
     commission_id: null,
     is_active: true,
     atelier_ids: [],
+    priority: "medium",
   });
 
   useEffect(() => {
@@ -61,9 +73,9 @@ export default function EditAnnouncementPage() {
       setLoading(true);
       try {
         const [announcementData, workshopsData, commissionsData] = await Promise.all([
-          fetchWithAuth(`/announcements/${announcementId}/`),
-          fetchWithAuth("/ateliers/"),
-          fetchWithAuth("/commissions/"),
+          fetchWithAuth<AnnouncementData>(`/announcements/${announcementId}/`),
+          fetchWithAuth<Workshop[]>("/ateliers/"),
+          fetchWithAuth<Commission[]>("/commissions/"),
         ]);
 
         setFormData({
@@ -72,6 +84,7 @@ export default function EditAnnouncementPage() {
           commission_id: announcementData.commission?.id.toString() || null,
           is_active: announcementData.is_active,
           atelier_ids: announcementData.ateliers.map((a: Workshop) => a.id),
+          priority: announcementData.priority || "medium",
         });
 
         setWorkshops(workshopsData);
@@ -85,6 +98,10 @@ export default function EditAnnouncementPage() {
     fetchData();
   }, [announcementId, toast, perms.announcements.can_update, authLoading, router]);
 
+    const filteredWorkshops = workshops.filter(w =>
+        w.name.toLowerCase().includes(workshopSearch.toLowerCase())
+    );
+
   const handleWorkshopToggle = (workshopId: number) => {
     setFormData((prev) => ({
       ...prev,
@@ -93,6 +110,18 @@ export default function EditAnnouncementPage() {
         : [...prev.atelier_ids, workshopId],
     }));
   };
+
+    const handleSelectAllVisible = () => {
+        const visibleIds = filteredWorkshops.map(w => w.id);
+        setFormData(prev => ({
+            ...prev,
+            atelier_ids: [...new Set([...prev.atelier_ids, ...visibleIds])]
+        }));
+    };
+
+    const handleClearAll = () => {
+        setFormData(prev => ({ ...prev, atelier_ids: [] }));
+    };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,28 +172,62 @@ export default function EditAnnouncementPage() {
               <Label htmlFor="content">Duyuru İçeriği (HTML destekler)</Label>
               <Textarea id="content" value={formData.text} onChange={(e) => setFormData({ ...formData, text: e.target.value })} className="min-h-[150px]" required />
             </div>
-            <div className="grid gap-3">
-              <Label htmlFor="commission">Komisyon</Label>
-              <Select value={formData.commission_id || ""} onValueChange={(value) => setFormData({ ...formData, commission_id: value })}>
-                <SelectTrigger id="commission"><SelectValue placeholder="Komisyon seçin" /></SelectTrigger>
-                <SelectContent>
-                  {commissions.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid gap-3">
+                <Label htmlFor="commission">Komisyon</Label>
+                <Select value={formData.commission_id || ""} onValueChange={(value) => setFormData({ ...formData, commission_id: value })}>
+                  <SelectTrigger id="commission"><SelectValue placeholder="Komisyon seçin" /></SelectTrigger>
+                  <SelectContent>
+                    {commissions.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-3">
+                  <Label htmlFor="priority">Öncelik</Label>
+                  <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
+                      <SelectTrigger id="priority">
+                          <SelectValue placeholder="Öncelik seçin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="low">Düşük</SelectItem>
+                          <SelectItem value="medium">Orta</SelectItem>
+                          <SelectItem value="high">Yüksek</SelectItem>
+                      </SelectContent>
+                  </Select>
+              </div>
             </div>
             <div className="grid gap-3">
                 <Label>Atölye Seçimi</Label>
                 <Card>
-                  <CardContent className="p-4 max-h-[200px] overflow-y-auto">
-                    <div className="space-y-4">
-                      {workshops.map((workshop) => (
-                        <div key={workshop.id} className="flex items-center space-x-2">
-                          <Checkbox id={`workshop-${workshop.id}`} checked={formData.atelier_ids.includes(workshop.id)} onCheckedChange={() => handleWorkshopToggle(workshop.id)} />
-                          <Label htmlFor={`workshop-${workshop.id}`} className="text-sm font-normal">{workshop.name}</Label>
+                    <div className="p-4 border-b space-y-2">
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Atölye ara..."
+                                value={workshopSearch}
+                                onChange={(e) => setWorkshopSearch(e.target.value)}
+                                className="pl-8"
+                            />
                         </div>
-                      ))}
+                        <div className="flex gap-2">
+                            <Button type="button" size="sm" variant="secondary" onClick={handleSelectAllVisible}>
+                                Görünenleri Seç
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={handleClearAll}>
+                                Tüm Seçimi Temizle
+                            </Button>
+                        </div>
                     </div>
-                  </CardContent>
+                    <CardContent className="p-4 max-h-[200px] overflow-y-auto">
+                        <div className="space-y-4">
+                            {filteredWorkshops.map((workshop) => (
+                                <div key={workshop.id} className="flex items-center space-x-2">
+                                <Checkbox id={`workshop-${workshop.id}`} checked={formData.atelier_ids.includes(workshop.id)} onCheckedChange={() => handleWorkshopToggle(workshop.id)} />
+                                <Label htmlFor={`workshop-${workshop.id}`} className="text-sm font-normal">{workshop.name}</Label>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
                 </Card>
             </div>
           </CardContent>

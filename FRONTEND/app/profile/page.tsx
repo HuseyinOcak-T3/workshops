@@ -17,7 +17,7 @@ import { Loader2, Camera, Save, X, Upload, Mail, Phone, User as UserIcon, Key, A
 import { fetchWithAuth } from "@/lib/fetchWithAuth"
 
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+// const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 // -----------------------------
 // Types (backend'e uyumlu)
@@ -94,30 +94,46 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!access) {
-      router.replace("/login")
-      return
+      router.replace("/login");
+      return;
     }
-    const headers = { Authorization: `Bearer ${access}` }
-    Promise.all([
-      fetchWithAuth(`${API}/api/profile/`),
-      fetchWithAuth(`${API}/api/cities/`),
-      fetchWithAuth(`${API}/api/ateliers/`),
-      fetchWithAuth(`${API}/api/titles/`),
-    ])
-      .then(async ([p, c, a, t]) => {
-        if (p.status === 401) throw new Error("Oturum süreniz doldu. Lütfen tekrar giriş yapın.")
-        const profile = await p.json()
-        const cityList = (await c.json()) as City[]
-        const atelierList = (await a.json()) as Atelier[]
-        const titleList = (await t.json()) as Title[]
-        setMe(profile)
-        setCities(cityList)
-        setAteliers(atelierList)
-        setTitles(titleList)
-      })
-      .catch((e) => setError(e.message || "Veriler alınamadı."))
-      .finally(() => setLoading(false))
-  }, [access])
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Promise.all ile tüm verileri aynı anda ve doğru şekilde çekiyoruz.
+        const [
+          profileData,
+          citiesData,
+          ateliersData,
+          titlesData
+        ] = await Promise.all([
+          fetchWithAuth<Profile>('/profile/'),
+          fetchWithAuth<City[]>('/cities/'),
+          fetchWithAuth<Atelier[]>('/ateliers/'),
+          fetchWithAuth<Title[]>('/titles/'),
+        ]);
+
+        // Gelen verileri doğrudan state'e atıyoruz, .json() işlemi yok.
+        setMe(profileData);
+        setCities(citiesData);
+        setAteliers(ateliersData);
+        setTitles(titlesData);
+
+      } catch (e: any) {
+        // Hata yönetimi burada yapılıyor.
+        setError(e.message || "Veriler alınamadı.");
+        toast.error(e.message || "Profil bilgileri getirilirken bir hata oluştu.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
+  }, [access, router]);
 
   const filteredAteliers = useMemo(() => {
     if (!me?.atelier_city) return ateliers
@@ -155,126 +171,84 @@ export default function ProfilePage() {
     setRemovePhoto(true)
   }
 
-  const saveProfile = async () => {
-    if (!access || !me) return
-    setSaving(true)
-    setError(null)
-    setFieldErrors({})
+const saveProfile = async () => {
+    if (!access || !me) return;
+    setSaving(true);
+    setError(null);
+    setFieldErrors({});
 
-    const fd = new FormData()
+    const fd = new FormData();
+
+    // Gerekli alanları FormData'ya ekleme
     const textMap: Partial<Record<keyof Profile, any>> = {
       first_name: me.first_name,
       last_name: me.last_name,
       phone: me.phone,
       tc_no: me.tc_no,
-      birth_date: me.birth_date, // YYYY-MM-DD
+      birth_date: me.birth_date,
       bio: me.bio,
       expertise: me.expertise,
       city: me.city,
       country: me.country,
-    }
+    };
     Object.entries(textMap).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) fd.append(k, String(v))
-      else fd.append(k, "")
-    })
+      if (v !== undefined && v !== null) fd.append(k, String(v));
+      else fd.append(k, "");
+    });
 
-    if (me.atelier_city?.id) fd.append("atelier_city_id", String(me.atelier_city.id))
-    else fd.append("atelier_city_id", "")
+    if (me.atelier_city?.id) fd.append("atelier_city_id", String(me.atelier_city.id));
+    else fd.append("atelier_city_id", "");
 
-    if (me.atelier?.id) fd.append("atelier_id", String(me.atelier.id))
-    else fd.append("atelier_id", "")
-
-    // title gönderilmez (read-only)
+    if (me.atelier?.id) fd.append("atelier_id", String(me.atelier.id));
+    else fd.append("atelier_id", "");
 
     if (file) {
-      fd.append("profile_picture", file)
+      fd.append("profile_picture", file);
     } else if (removePhoto) {
-      fd.append("profile_picture", "")
+      fd.append("profile_picture", "");
     }
 
     try {
-      const res = await fetchWithAuth(`${API}/api/profile/`, {
+      const updatedProfile = await fetchWithAuth<Profile>('/profile/', {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${access}` },
+
         body: fd,
-      })
+      });
 
-      if (!res.ok) {
-        let msg = "Kaydedilemedi."
-        try {
-          const data = await res.json()
-          if (typeof data === "object" && data) {
-            setFieldErrors(data)
-            if (Array.isArray((data as any).non_field_errors) && (data as any).non_field_errors.length) {
-              msg = (data as any).non_field_errors[0]
-            }
-          }
-        } catch {}
-        throw new Error(msg)
-      }
-      const updated = await res.json()
-      setMe(updated)
-      setFile(null)
-      setRemovePhoto(false)
-      toast.success("Profil güncellendi. Bilgileriniz başarıyla kaydedildi.")
+      setMe(updatedProfile);
+      setFile(null);
+      setRemovePhoto(false);
+      toast.success("Profil güncellendi. Bilgileriniz başarıyla kaydedildi.");
+
     } catch (e: any) {
-      setError(e.message || "Kaydedilemedi.")
+      // fetchWithAuth'tan gelen hatalar bu bloğa düşer.
+      // Hata mesajı genellikle e.message içinde bulunur.
+      setError(e.message || "Kaydedilemedi.");
+      toast.error(e.message || "Bir hata oluştu.");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
-
+  };
   const changePassword = async () => {
-    if (!access) return
+    if (!access) return;
 
     if (pwd.new_password !== pwd.confirm_password) {
-      toast.error("Yeni şifreler eşleşmiyor.")
-      return
+      toast.error("Yeni şifreler eşleşmiyor.");
+      return;
     }
 
     try {
-      const res = await fetch(`${API}/api/change-password/`, {
+      await fetchWithAuth(`/password/change/`, {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${access}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(pwd),
-      })
+      });
 
-      if (!res.ok) {
-        let msg = "Şifre güncellenemedi."
-        try {
-          const data = await res.json()
-
-          if (typeof data === "string") {
-            msg = data
-          } else if (data?.detail) {
-            msg = data.detail
-          } else if (typeof data === "object" && data) {
-            const allErrors: string[] = []
-            Object.entries(data).forEach(([field, errors]) => {
-              if (Array.isArray(errors)) {
-                errors.forEach(err => allErrors.push(`${field}: ${err}`))
-              } else if (typeof errors === "string") {
-                allErrors.push(`${field}: ${errors}`)
-              }
-            })
-            if (allErrors.length) msg = allErrors.join(" | ")
-          }
-        } catch {
-        }
-        throw new Error(msg)
-      }
-
-      toast.success("Şifre başarıyla güncellendi.")
-      setPwd({ current_password: "", new_password: "", confirm_password: "" })
+      toast.success("Şifre başarıyla güncellendi.");
+      setPwd({ current_password: "", new_password: "", confirm_password: "" });
     } catch (e: any) {
-      toast.error(e.message || "Şifre güncellenemedi.")
+      toast.error(e.message || "Şifre güncellenemedi.");
     }
-  }
-
-
+  };
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">

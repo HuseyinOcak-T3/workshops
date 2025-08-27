@@ -26,6 +26,7 @@ interface Announcement {
   is_active: boolean;
   is_archived: boolean;
   ateliers: Atelier[];
+  priority: 'high' | 'medium' | 'low';
   read_count: number;
   total_count: number;
 }
@@ -40,7 +41,7 @@ interface WorkshopReadStatus {
 
 export default function AnnouncementsPage() {
   const { toast } = useToast();
-  const { perms, loading: authLoading } = useAuth();
+  const { user, perms, loading: authLoading } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCommission, setSelectedCommission] = useState("all");
@@ -81,6 +82,21 @@ export default function AnnouncementsPage() {
     };
     fetchData();
   }, [toast, perms.announcements.can_view, authLoading]);
+
+  useEffect(() => {
+    if (selectedAnnouncement && user?.role?.code === 'workshop_responsible') {
+      const markAsRead = async () => {
+        try {
+          await fetchWithAuth(`/announcements/${selectedAnnouncement.id}/mark_read/`, {
+            method: 'POST',
+          });
+        } catch (error) {
+          console.error("Duyuru okundu olarak işaretlenemedi:", error);
+        }
+      };
+      markAsRead();
+    }
+  }, [selectedAnnouncement, user]);
 
   useEffect(() => {
     if (!selectedAnnouncement) {
@@ -154,6 +170,28 @@ export default function AnnouncementsPage() {
     return matchesSearch && matchesCommission;
   });
 
+  const getPriorityBadge = (priority: 'high' | 'medium' | 'low') => { // GÜNCELLENDİ
+      switch (priority) {
+          case "high":
+              return <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">Yüksek Öncelik</Badge>;
+          case "medium":
+              return <Badge variant="outline" className="bg-yellow-50 text-yellow-600 border-yellow-200">Orta Öncelik</Badge>;
+          case "low":
+              return <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">Düşük Öncelik</Badge>;
+          default:
+              return <Badge variant="outline">Belirtilmemiş</Badge>;
+      }
+  };
+
+  const getPriorityClass = (priority: 'high' | 'medium' | 'low') => { // YENİ FONKSİYON
+      switch (priority) {
+          case "high": return "bg-red-500";
+          case "medium": return "bg-yellow-500";
+          case "low": return "bg-green-500";
+          default: return "bg-gray-400";
+      }
+  };
+
   const activeAnnouncements = filteredAnnouncements.filter((a) => a.is_active && !a.is_archived);
   const archivedAnnouncements = filteredAnnouncements.filter((a) => a.is_archived);
   if (loading || authLoading) {
@@ -214,8 +252,14 @@ export default function AnnouncementsPage() {
                 <div className="divide-y max-h-[calc(100vh-350px)] overflow-y-auto">
                   {activeAnnouncements.length > 0 ? activeAnnouncements.map((ann) => (
                     <div key={ann.id} className={`p-4 cursor-pointer hover:bg-muted/50 ${selectedAnnouncement?.id === ann.id ? "bg-muted" : ""}`} onClick={() => handleSelectAnnouncement(ann)}>
-                      <div className="font-medium">{ann.title}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{ann.commission?.name || "Genel"}</div>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <div className={`h-2 w-2 rounded-full flex-shrink-0 ${getPriorityClass(ann.priority)}`}></div>
+                          <span className="font-medium">{ann.title}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(ann.publication_date).toLocaleDateString("tr-TR")}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 pl-4">{ann.commission?.name || "Genel"}</div>
                     </div>
                   )) : <p className="p-4 text-center text-sm text-muted-foreground">Aktif duyuru yok.</p>}
                 </div>
@@ -224,8 +268,14 @@ export default function AnnouncementsPage() {
                  <div className="divide-y max-h-[calc(100vh-350px)] overflow-y-auto">
                   {archivedAnnouncements.length > 0 ? archivedAnnouncements.map((ann) => (
                     <div key={ann.id} className={`p-4 cursor-pointer hover:bg-muted/50 ${selectedAnnouncement?.id === ann.id ? "bg-muted" : ""}`} onClick={() => handleSelectAnnouncement(ann)}>
-                      <div className="font-medium">{ann.title}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{ann.commission?.name || "Genel"}</div>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                            <div className={`h-2 w-2 rounded-full flex-shrink-0 ${getPriorityClass(ann.priority)}`}></div>
+                            <span className="font-medium">{ann.title}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(ann.publication_date).toLocaleDateString("tr-TR")}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 pl-4">{ann.commission?.name || "Genel"}</div>
                     </div>
                   )) : <p className="p-4 text-center text-sm text-muted-foreground">Arşivlenmiş duyuru yok.</p>}
                 </div>
@@ -240,12 +290,16 @@ export default function AnnouncementsPage() {
               <Card>
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle>{selectedAnnouncement.title}</CardTitle>
-                      <CardDescription>{selectedAnnouncement.commission?.name || "Genel"} • {new Date(selectedAnnouncement.publication_date).toLocaleDateString("tr-TR")}</CardDescription>
+                    <CardTitle>{selectedAnnouncement.title}</CardTitle>
+                        <div className="flex items-center gap-2">
+                            {getPriorityBadge(selectedAnnouncement.priority)}
+                            <Badge variant={selectedAnnouncement.is_archived ? "secondary" : "default"}>{selectedAnnouncement.is_archived ? "Arşivlenmiş" : "Aktif"}</Badge>
+                        </div>
                     </div>
-                    <Badge variant={selectedAnnouncement.is_active ? "default" : "secondary"}>{selectedAnnouncement.is_active ? "Aktif" : "Arşivlenmiş"}</Badge>
-                  </div>
+                    <CardDescription className="flex justify-between w-full">
+                        <span>{selectedAnnouncement.commission?.name || "Genel"}</span>
+                        <span>{new Date(selectedAnnouncement.publication_date).toLocaleDateString("tr-TR")}</span>
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: selectedAnnouncement.text }} />
                  <CardFooter className="flex justify-between">
@@ -268,61 +322,63 @@ export default function AnnouncementsPage() {
                 </CardFooter>
               </Card>
 
-              <Card>
-                <CardHeader>
-                    <CardTitle>Duyuru İstatistikleri</CardTitle>
-                    <CardDescription>Okunma ve etkileşim verileri</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                            <span>Okunma Durumu ({selectedAnnouncement.read_count} / {selectedAnnouncement.total_count})</span>
-                            <span className="font-medium">
-                            {selectedAnnouncement.total_count > 0 ? `${Math.round((selectedAnnouncement.read_count / selectedAnnouncement.total_count) * 100)}%` : 'N/A'}
-                            </span>
-                        </div>
-                        <Progress value={selectedAnnouncement.total_count > 0 ? (selectedAnnouncement.read_count / selectedAnnouncement.total_count) * 100 : 0} className="h-2" />
-                    </div>
-                    <div>
-                        <Button variant="outline" size="sm" onClick={() => setShowWorkshops(!showWorkshops)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            {showWorkshops ? "Atölye Detaylarını Gizle" : "Atölye Bazlı Durumu Görüntüle"}
-                        </Button>
-                    </div>
-                    {showWorkshops && (
-                    <div className="border rounded-lg p-4 mt-2 max-h-60 overflow-y-auto">
-                        <h4 className="font-medium mb-3">Atölye Bazlı Okunma Durumu</h4>
-                        {loadingStatus ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> :
-                        <div className="space-y-4">
-                        {workshopReadStatus.map((workshop) => (
-                            <div key={workshop.id} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className={`h-2 w-2 rounded-full ${workshop.read ? "bg-green-500" : "bg-red-500"}`}></div>
-                                <span className="text-sm">{workshop.name}</span>
-                            </div>
-                            <div className="text-sm">
-                                {workshop.read ? (
-                                <span className="text-green-600">
-                                    Okundu: {new Date(workshop.read_date!).toLocaleDateString("tr-TR")}
+                {perms.announcements.can_view_stats && (
+                  <Card>
+                    <CardHeader>
+                        <CardTitle>Duyuru İstatistikleri</CardTitle>
+                        <CardDescription>Okunma ve etkileşim verileri</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                                <span>Okunma Durumu ({selectedAnnouncement.read_count} / {selectedAnnouncement.total_count})</span>
+                                <span className="font-medium">
+                                {selectedAnnouncement.total_count > 0 ? `${Math.round((selectedAnnouncement.read_count / selectedAnnouncement.total_count) * 100)}%` : 'N/A'}
                                 </span>
-                                ) : (
-                                <span className="text-red-600">Okunmadı</span>
-                                )}
                             </div>
-                            </div>
-                        ))}
+                            <Progress value={selectedAnnouncement.total_count > 0 ? (selectedAnnouncement.read_count / selectedAnnouncement.total_count) * 100 : 0} className="h-2" />
                         </div>
-                        }
-                    </div>
-                    )}
-                </CardContent>
-                 <CardFooter>
-                    <Button variant="outline" className="w-full">
-                        <FileText className="mr-2 h-4 w-4" />
-                        Detaylı Rapor İndir
-                    </Button>
-                </CardFooter>
-              </Card>
+                        <div>
+                            <Button variant="outline" size="sm" onClick={() => setShowWorkshops(!showWorkshops)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                {showWorkshops ? "Atölye Detaylarını Gizle" : "Atölye Bazlı Durumu Görüntüle"}
+                            </Button>
+                        </div>
+                        {showWorkshops && (
+                        <div className="border rounded-lg p-4 mt-2 max-h-60 overflow-y-auto">
+                            <h4 className="font-medium mb-3">Atölye Bazlı Okunma Durumu</h4>
+                            {loadingStatus ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> :
+                            <div className="space-y-4">
+                            {workshopReadStatus.map((workshop) => (
+                                <div key={workshop.id} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className={`h-2 w-2 rounded-full ${workshop.read ? "bg-green-500" : "bg-red-500"}`}></div>
+                                    <span className="text-sm">{workshop.name}</span>
+                                </div>
+                                <div className="text-sm">
+                                    {workshop.read ? (
+                                    <span className="text-green-600">
+                                        Okundu: {new Date(workshop.read_date!).toLocaleDateString("tr-TR")}
+                                    </span>
+                                    ) : (
+                                    <span className="text-red-600">Okunmadı</span>
+                                    )}
+                                </div>
+                                </div>
+                            ))}
+                            </div>
+                            }
+                        </div>
+                        )}
+                    </CardContent>
+                     <CardFooter>
+                        <Button variant="outline" className="w-full">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Detaylı Rapor İndir
+                        </Button>
+                    </CardFooter>
+                  </Card>
+                )}
             </>
           ) : (
             <Card className="flex flex-col items-center justify-center h-full min-h-[60vh] p-6 text-center">

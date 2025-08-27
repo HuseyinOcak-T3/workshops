@@ -2,9 +2,9 @@ from django.db import models
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Announcement, AnnouncementRead, AnnouncementArchive, AnnouncementPermission
+from .models import Announcement, AnnouncementRead, AnnouncementPermission
 from .serializers import (
-    AnnouncementSerializer, AnnouncementReadSerializer, AnnouncementArchiveSerializer, AnnouncementPermissionSerializer
+    AnnouncementSerializer, AnnouncementReadSerializer, AnnouncementPermissionSerializer
 )
 from .permissions import get_user_announcement_perms, get_visible_ateliers_for
 from rest_framework.exceptions import PermissionDenied
@@ -20,16 +20,13 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         if not perms["can_view"]:
             return Announcement.objects.none()
 
-        if user.is_superuser or user.is_staff:
-            return self.queryset.distinct()
         own_ateliers = getattr(user, "ateliers", None)
         if callable(own_ateliers):
             own_ateliers = own_ateliers.all()
         visible_ids = get_visible_ateliers_for(user, own_ateliers_qs=own_ateliers)
 
-        # Kullanıcılar, kendi atölyelerine atanmış veya hiçbir atölyeye atanmamış (genel) duyuruları görür.
         return self.queryset.filter(
-            models.Q(ateliers__in=list(visible_ids)) | models.Q(ateliers__isnull=True)
+            models.Q(ateliers__in=list(visible_ids))
         ).distinct()
 
     def perform_create(self, serializer):
@@ -93,19 +90,10 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     def mark_read(self, request, pk=None):
         ann = self.get_object()
         read, _ = AnnouncementRead.objects.update_or_create(
-            announcement=ann, user=request.user,
-            defaults={"is_read": True}
+            announcement=ann, user=request.user
         )
         return Response(AnnouncementReadSerializer(read).data)
 
-    @action(detail=True, methods=["post"])
-    def mark_archived(self, request, pk=None):
-        ann = self.get_object()
-        arch, _ = AnnouncementArchive.objects.update_or_create(
-            announcement=ann, user=request.user,
-            defaults={"is_archived": True}
-        )
-        return Response(AnnouncementArchiveSerializer(arch).data)
 
 class AnnouncementPermissionViewSet(viewsets.ModelViewSet):
     queryset = AnnouncementPermission.objects.select_related('role').all()

@@ -14,6 +14,7 @@ import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { fetchWithAuth } from "@/lib/fetchWithAuth"
 import { useAuth } from "@/app/context/AuthContext"
+import { Search } from "lucide-react"
 
 interface Workshop { id: number; name: string; }
 interface Commission { id: number; name: string; }
@@ -27,11 +28,13 @@ export default function NewAnnouncementPage() {
     const [commissions, setCommissions] = useState<Commission[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [workshopSearch, setWorkshopSearch] = useState("");
     const [formData, setFormData] = useState({
         title: "",
         text: "",
         commission_id: null as number | null,
         atelier_ids: [] as number[],
+        priority: "medium",
     });
 
     useEffect(() => {
@@ -71,8 +74,41 @@ export default function NewAnnouncementPage() {
         }));
     };
 
+    const filteredWorkshops = workshops.filter(w =>
+        w.name.toLowerCase().includes(workshopSearch.toLowerCase())
+    );
+
+    const handleSelectAllVisible = () => {
+        const visibleIds = filteredWorkshops.map(w => w.id);
+        setFormData(prev => ({
+            ...prev,
+            atelier_ids: [...new Set([...prev.atelier_ids, ...visibleIds])]
+        }));
+    };
+
+    const handleClearAll = () => {
+        setFormData(prev => ({ ...prev, atelier_ids: [] }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (formData.atelier_ids.length === 0) {
+            toast({
+                title: "Atölye Seçilmedi",
+                description: "Lütfen duyuruyu göndermek için en az bir atölye seçin.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (!formData.commission_id) {
+            toast({
+                title: "Komisyon Seçilmedi",
+                description: "Lütfen duyuru için ilgili komisyonu seçin.",
+                variant: "destructive",
+            });
+            return;
+        }
         setIsSaving(true);
         try {
             await fetchWithAuth('/announcements/', {
@@ -102,21 +138,60 @@ export default function NewAnnouncementPage() {
                     <CardContent className="space-y-6">
                         <div className="grid gap-3"><Label htmlFor="title">Duyuru Başlığı</Label><Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} required /></div>
                         <div className="grid gap-3"><Label htmlFor="text">Duyuru İçeriği</Label><Textarea id="text" value={formData.text} onChange={(e) => setFormData({ ...formData, text: e.target.value })} className="min-h-[200px]" required /></div>
-                        <div className="grid gap-3"><Label htmlFor="commission">İlgili Komisyon</Label>
-                            <Select onValueChange={(value) => setFormData({ ...formData, commission_id: parseInt(value) })}>
-                                <SelectTrigger><SelectValue placeholder="Komisyon seçin (isteğe bağlı)" /></SelectTrigger>
-                                <SelectContent>{commissions.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid gap-3">
+                                <Label htmlFor="commission">İlgili Komisyon *</Label>
+                                <Select onValueChange={(value) => setFormData({ ...formData, commission_id: parseInt(value) })}>
+                                    <SelectTrigger><SelectValue placeholder="Komisyon seçin" /></SelectTrigger>
+                                    <SelectContent>{commissions.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-3">
+                                <Label htmlFor="priority">Öncelik</Label>
+                                <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
+                                    <SelectTrigger id="priority">
+                                        <SelectValue placeholder="Öncelik seçin" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="low">Düşük</SelectItem>
+                                        <SelectItem value="medium">Orta</SelectItem>
+                                        <SelectItem value="high">Yüksek</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        <div className="grid gap-3"><Label>Hedef Atölyeler (Boş bırakırsanız tüm atölyelere gider)</Label>
-                            <Card><CardContent className="p-4 max-h-[200px] overflow-y-auto">
-                                <div className="space-y-2">{workshops.map((w) => (
-                                    <div key={w.id} className="flex items-center space-x-2">
-                                        <Checkbox id={`w-${w.id}`} checked={formData.atelier_ids.includes(w.id)} onCheckedChange={() => handleWorkshopToggle(w.id)} />
-                                        <Label htmlFor={`w-${w.id}`} className="font-normal">{w.name}</Label>
-                                    </div>))}
+                        <div className="grid gap-3"><Label>Hedef Atölyeler (En az bir atölye seçilmelidir)</Label>
+                            <Card>
+                                <div className="p-4 border-b space-y-2">
+                                    <div className="relative">
+                                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Atölye ara..."
+                                            value={workshopSearch}
+                                            onChange={(e) => setWorkshopSearch(e.target.value)}
+                                            className="pl-8"
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button type="button" size="sm" variant="secondary" onClick={handleSelectAllVisible}>
+                                            Görünenleri Seç
+                                        </Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={handleClearAll}>
+                                            Tüm Seçimi Temizle
+                                        </Button>
+                                    </div>
                                 </div>
-                            </CardContent></Card>
+                                <CardContent className="p-4 max-h-[200px] overflow-y-auto">
+                                    <div className="space-y-2">
+                                        {filteredWorkshops.map((w) => (
+                                            <div key={w.id} className="flex items-center space-x-2">
+                                                <Checkbox id={`w-${w.id}`} checked={formData.atelier_ids.includes(w.id)} onCheckedChange={() => handleWorkshopToggle(w.id)} />
+                                                <Label htmlFor={`w-${w.id}`} className="font-normal">{w.name}</Label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
                     </CardContent>
                     <CardFooter className="flex justify-between">
