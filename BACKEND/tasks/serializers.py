@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Task, TaskRolePermission, AtelierViewPermission
+from .models import Task, TaskRolePermission, TaskAtelier
 from customuser.models import Atelier, Commission
 
 
@@ -14,6 +14,16 @@ class StrictFieldsMixin:
             )
         return super().validate(attrs)
 
+
+class TaskAtelierSerializer(serializers.ModelSerializer):
+    atelier_name = serializers.CharField(source="atelier.name", read_only=True)
+    completed_by_full_name = serializers.CharField(source="completed_by.get_full_name", read_only=True)
+
+    class Meta:
+        model = TaskAtelier
+        fields = ["atelier", "atelier_name", "status", "completed_by", "completed_by_full_name", "completed_at"]
+        read_only_fields = ["completed_by", "completed_by_full_name", "completed_at"]
+
 class TaskSerializer(serializers.ModelSerializer):
     atelier = serializers.PrimaryKeyRelatedField(
         queryset=Atelier.objects.all(), many=True, required=False
@@ -27,22 +37,23 @@ class TaskSerializer(serializers.ModelSerializer):
     completed_by = serializers.PrimaryKeyRelatedField(read_only=True)
     completed_by_full_name = serializers.CharField(source="completed_by.get_full_name", read_only=True)
     completed_at = serializers.DateTimeField(read_only=True)
+    assignments = TaskAtelierSerializer(many=True, read_only=True)
 
     class Meta:
         model = Task
         fields = [
             "id", "title", "description", "status", "priority", "due_date",
-            "ateliers",
+            "atelier",
             "commission", "commission_name",
             "active", "send_notification", "send_email",
             "created_by", "created_by_full_name",
             "completed_by", "completed_by_full_name", "completed_at",
-            "created_at", "updated_at",
+            "created_at", "updated_at", "assignments"
         ]
         read_only_fields = (
             "id", "created_by", "created_at", "updated_at",
             "commission_name", "active",
-            "completed_by", "completed_by_full_name", "completed_at",
+            "completed_by", "completed_by_full_name", "completed_at", "assignments",
         )
 
 class TaskCreateUpdateSerializer(StrictFieldsMixin, serializers.ModelSerializer):
@@ -57,22 +68,41 @@ class TaskCreateUpdateSerializer(StrictFieldsMixin, serializers.ModelSerializer)
         model = Task
         fields = (
             "title", "description", "status", "priority", "due_date",
-            "ateliers", "commission", "send_notification", "send_email",
+            "atelier", "commission", "send_notification", "send_email",
         )
 
     def create(self, validated_data):
-        ateliers = validated_data.pop("ateliers", [])
+        atelier = validated_data.pop("atelier", [])
         task = Task.objects.create(**validated_data)
         if atelier:
             task.atelier.set(atelier)
+            for a in atelier:
+                TaskAtelier.objects.get_or_create(task=task, atelier=a, defaults={"status": task.status})
         return task
 
     def update(self, instance, validated_data):
-        ateliers = validated_data.pop("ateliers", None)
+        atelier = validated_data.pop("atelier", None)
         instance = super().update(instance, validated_data)
         if atelier is not None:
             instance.atelier.set(atelier)
+            existing = set(instance.assignments.values_list("atelier_id", flat=True))
+            incoming = set([a.id for a in atelier])
+            for aid in (incoming - existing):
+                TaskAtelier.objects.get_or_create(task=instance, atelier_id=aid, defaults={"status": instance.status})
+            for aid in (existing - incoming):
+                TaskAtelier.objects.filter(task=instance, atelier_id=aid).delete()
         return instance
+
+
+class TaskAtelierSerializer(serializers.ModelSerializer):
+    atelier_name = serializers.CharField(source="atelier.name", read_only=True)
+    completed_by_full_name = serializers.CharField(source="completed_by.get_full_name", read_only=True)
+
+    class Meta:
+        model = TaskAtelier
+        fields = ["atelier", "atelier_name", "status", "completed_by", "completed_by_full_name", "completed_at"]
+        read_only_fields = ["completed_by", "completed_by_full_name", "completed_at"]
+
 
 class TaskRolePermissionSerializer(serializers.ModelSerializer):
     role_name = serializers.CharField(source="role.name", read_only=True)
@@ -80,11 +110,3 @@ class TaskRolePermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskRolePermission
         fields = ["id", "role", "role_name", "can_view", "can_create", "can_update", "can_archive"]
-
-class AtelierViewPermissionSerializer(serializers.ModelSerializer):
-    user_full_name = serializers.CharField(source="user.get_full_name", read_only=True)
-    atelier_name = serializers.CharField(source="atelier.name", read_only=True)
-
-    class Meta:
-        model = AtelierViewPermission
-        fields = ["id", "user", "user_full_name", "atelier", "atelier_name"]

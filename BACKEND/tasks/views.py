@@ -1,24 +1,24 @@
 from django.db.models import Q
-from django.utils import timezone 
+from django.utils import timezone
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Task, TaskRolePermission, AtelierViewPermission
+
+from .models import Task, TaskRolePermission
 from .serializers import (
     TaskSerializer,
     TaskRolePermissionSerializer,
-    AtelierViewPermissionSerializer,
     TaskCreateUpdateSerializer,
 )
-
 from customuser.serializers import CommissionSerializer
 from .permission import role_perms as _role_perms, TaskAccessPermission
 from customuser.models import Atelier, Commission
 
+
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = (
         Task.objects.select_related("commission", "created_by", "completed_by")
-        .prefetch_related("ateliers")
+        .prefetch_related("atelier", "assignments__atelier")
         .all()
     )
     permission_classes = [permissions.IsAuthenticated, TaskAccessPermission]
@@ -34,16 +34,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset().filter(active=True)
 
         filt = Q(created_by=u)
-
         user_atelier_id = getattr(u, "atelier_id", None)
         if user_atelier_id:
-            filt |= Q(ateliers__id=user_atelier_id)
-
-        extra_ids = list(
-            AtelierViewPermission.objects.filter(user=u).values_list("atelier_id", flat=True)
-        )
-        if extra_ids:
-            filt |= Q(ateliers__id__in=extra_ids)
+            filt |= Q(assignments__atelier_id=user_atelier_id)
 
         if not perms.get("can_view", False):
             qs = qs.filter(created_by=u)
@@ -57,8 +50,8 @@ class TaskViewSet(viewsets.ModelViewSet):
             qs = qs.filter(priority=p["priority"])
         if "commission" in p:
             qs = qs.filter(commission_id=p["commission"])
-        if "ateliers" in p:
-            ids = [x for x in p["ateliers"].split(",") if x.isdigit()]
+        if "atelier" in p:
+            ids = [x for x in p["atelier"].split(",") if x.isdigit()]
             if ids:
                 qs = qs.filter(ateliers__id__in=ids)
         q = p.get("q")
@@ -91,52 +84,60 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     @action(
         detail=True,
-        methods=["post"],
-        url_path="complete",
+        methods=["patch"],
+        url_path="status",
         permission_classes=[permissions.IsAuthenticated],
     )
-    def complete(self, request, pk=None):
+    def update_status(self, request, pk=None):
         task = self.get_object()
         u = request.user
-        allowed = (task.created_by_id == u.id)
-
         user_atelier_id = getattr(u, "atelier_id", None)
-        if not allowed and user_atelier_id:
-            allowed = task.ateliers.filter(id=user_atelier_id).exists()
+        if not user_atelier_id:
+            return Response({"detail": "Atölye bilgisi bulunamadı."}, status=403)
 
-        if not allowed:
-            extra_ok = AtelierViewPermission.objects.filter(
-                user=u, atelier__in=task.ateliers.all()
-            ).exists()
-            if extra_ok:
-                allowed = True
+        try:
+            ta = task.assignments.get(atelier_id=user_atelier_id)
+        except Exception:
+            return Response({"detail": "Bu görevin durumunu güncelleme yetkiniz yok."}, status=403)
 
-        if not allowed:
-            return Response({"detail": "Bu görevi tamamlama yetkiniz yok."}, status=403)
+        new_status = (request.data or {}).get("status")
+        if not new_status:
+            return Response({"detail": "status zorunludur."}, status=400)
 
-        if str(task.status).lower() in ("done", "completed", "tamamlandi", "tamamlandı"):
-            ser = TaskSerializer(task, context={"request": request})
-            return Response(ser.data, status=200)
+        if getattr(Task, "STATUS_CHOICES", None):
+            allowed = {k for k, _ in Task.STATUS_CHOICES}
+            if new_status not in allowed:
+                return Response(
+                    {"detail": f"Geçersiz status. İzin verilenler: {sorted(list(allowed))}"},
+                    status=400,
+                )
 
-        task.status = "done"
-        task.completed_by = u
-        task.completed_at = timezone.now()
-        task.save(update_fields=["status", "completed_by", "completed_at", "updated_at"])
+        ta.status = new_status
+        if str(new_status).lower() in {"done", "completed", "tamamlandi", "tamamlandı"}:
+            ta.completed_by = u
+            ta.completed_at = timezone.now()
+        ta.save()
+
+        others_pending = task.assignments.exclude(
+            status__in=["done", "completed", "tamamlandi", "tamamlandı"]
+        ).exists()
+        if not others_pending:
+            task.status = new_status
+            task.completed_by = u
+            task.completed_at = timezone.now()
+            task.save(update_fields=["status", "completed_by", "completed_at", "updated_at"])
 
         ser = TaskSerializer(task, context={"request": request})
         return Response(ser.data, status=200)
+
 
 class CommissionViewSet(viewsets.ModelViewSet):
     queryset = Commission.objects.all().order_by("name")
     serializer_class = CommissionSerializer
     permission_classes = [permissions.IsAdminUser]
 
+
 class TaskRolePermissionViewSet(viewsets.ModelViewSet):
     queryset = TaskRolePermission.objects.select_related("role").all()
     serializer_class = TaskRolePermissionSerializer
-    permission_classes = [permissions.IsAdminUser]
-
-class AtelierViewPermissionViewSet(viewsets.ModelViewSet):
-    queryset = AtelierViewPermission.objects.select_related("user", "atelier").all()
-    serializer_class = AtelierViewPermissionSerializer
     permission_classes = [permissions.IsAdminUser]

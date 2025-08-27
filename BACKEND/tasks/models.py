@@ -34,9 +34,10 @@ class Task(models.Model):
         on_delete=models.SET_NULL,
         related_name="tasks",
     )
-    ateliers = models.ManyToManyField(
-        "customuser.Atelier", related_name="tasks", blank=True
+    atelier = models.ManyToManyField(
+        "customuser.Atelier", related_name="tasks", blank=True, through="tasks.TaskAtelier"
     )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -68,6 +69,25 @@ class Task(models.Model):
         return self.title
 
 
+class TaskAtelier(models.Model):
+    task = models.ForeignKey("tasks.Task", on_delete=models.CASCADE, related_name="assignments")
+    atelier = models.ForeignKey("customuser.Atelier", on_delete=models.CASCADE, related_name="task_assignments")
+
+    status = models.CharField(max_length=20, choices=Task.STATUS_CHOICES, default=Task.STATUS_PENDING)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="atelier_completed_tasks"
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("task", "atelier")
+
+    def __str__(self):
+        return f"{self.task_id} @ {self.atelier_id} -> {self.status}"
+
+
+
 class TaskRolePermission(models.Model):
     role = models.ForeignKey(
         "customuser.Role", on_delete=models.CASCADE, related_name="task_permissions"
@@ -80,20 +100,3 @@ class TaskRolePermission(models.Model):
     def __str__(self) -> str:
         role_name = getattr(self.role, "name", self.role_id)
         return f"{role_name} perms"
-
-
-class AtelierViewPermission(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="atelier_view_perms",
-    )
-    atelier = models.ForeignKey(
-        "customuser.Atelier", on_delete=models.CASCADE, related_name="view_perms"
-    )
-
-    class Meta:
-        unique_together = ("user", "atelier")
-
-    def __str__(self) -> str:
-        return f"{self.user_id} -> {self.atelier_id}"
