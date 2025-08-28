@@ -11,6 +11,7 @@ import Link from "next/link"
 import { fetchWithAuth } from "@/lib/fetchWithAuth"
 import { useAuth } from "@/app/context/AuthContext"
 import { Progress } from "@/components/ui/progress"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Commission { id: number; name: string; }
 interface Atelier { id: number; name: string; }
@@ -43,6 +44,8 @@ export default function AnnouncementDetailPage() {
   const announcementId = params.id as string;
 
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showWorkshops, setShowWorkshops] = useState(false);
   const [workshopReadStatus, setWorkshopReadStatus] = useState<WorkshopReadStatus[]>([]);
@@ -92,10 +95,8 @@ export default function AnnouncementDetailPage() {
     fetchReadStatus();
   }, [announcement, toast]);
 
-// YENİ FONKSİYON: Sadece pasif yapma (Silme)
   const handleDeactivateAnnouncement = async () => {
     if (!perms.announcements.can_archive || !announcement) return;
-    if (!confirm("Bu duyuruyu pasif hale getirmek istediğinizden emin misiniz? Artık listede görünmeyecektir.")) return;
     try {
         await fetchWithAuth(`/announcements/${announcement.id}/`, {
             method: "PATCH",
@@ -108,7 +109,6 @@ export default function AnnouncementDetailPage() {
     }
   };
 
-  // YENİ FONKSİYON: Sadece arşivleme
   const handleArchiveAnnouncement = async () => {
     if (!perms.announcements.can_archive || !announcement) return;
     try {
@@ -140,17 +140,51 @@ export default function AnnouncementDetailPage() {
             )}
             {perms.announcements.can_archive && (
                 <>
-                <Button variant="outline" onClick={handleArchiveAnnouncement}>
+                <Button variant="outline" onClick={() => setIsArchiveDialogOpen(true)}>
                     {announcement.is_archived ? <ArchiveRestore className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />}
                     {announcement.is_archived ? "Arşivden Çıkar" : "Arşivle"}
                 </Button>
-                <Button variant="destructive" onClick={handleDeactivateAnnouncement}>
+                <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>
                     <Trash className="mr-2 h-4 w-4" /> Sil
                 </Button>
                 </>
             )}
         </div>
       </div>
+
+      <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Arşivleme Onayı</DialogTitle>
+            <DialogDescription>
+                "{announcement.title}" başlıklı duyuruyu {announcement.is_archived ? 'arşivden çıkarmak' : 'arşivlemek'} istediğinizden emin misiniz?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsArchiveDialogOpen(false)}>İptal</Button>
+            <Button onClick={handleArchiveAnnouncement}>
+              {announcement.is_archived ? 'Arşivden Çıkar' : 'Arşivle'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Silme Onayı</DialogTitle>
+            <DialogDescription>
+              "{announcement.title}" başlıklı duyuruyu silmek istediğinizden emin misiniz?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>İptal</Button>
+            <Button variant="destructive" onClick={handleDeactivateAnnouncement}>
+              Sil
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-2">

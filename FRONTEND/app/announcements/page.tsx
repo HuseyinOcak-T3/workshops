@@ -13,6 +13,7 @@ import Link from "next/link"
 import { fetchWithAuth } from "@/lib/fetchWithAuth"
 import { useAuth } from "@/app/context/AuthContext"
 import { Progress } from "@/components/ui/progress"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Tipler
 interface Commission { id: number; name: string; }
@@ -49,6 +50,8 @@ export default function AnnouncementsPage() {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [showWorkshops, setShowWorkshops] = useState(false);
   const [workshopReadStatus, setWorkshopReadStatus] = useState<WorkshopReadStatus[]>([]);
   const [loadingStatus, setLoadingStatus] = useState(false);
@@ -141,6 +144,7 @@ export default function AnnouncementsPage() {
     } catch (error: any) {
         toast({ title: "Hata", description: `İşlem yapılamadı: ${error.message}`, variant: "destructive" });
     }
+    setIsDeleteDialogOpen(false);
   };
 
   const handleArchiveAnnouncement = async (id: number) => {
@@ -163,7 +167,9 @@ export default function AnnouncementsPage() {
     } catch (error: any) {
         toast({ title: "Hata", description: `İşlem yapılamadı: ${error.message}`, variant: "destructive" });
     }
+    setIsArchiveDialogOpen(false);
   };
+
   const filteredAnnouncements = announcements.filter((ann) => {
     const matchesSearch = ann.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCommission = selectedCommission === "all" || ann.commission?.id.toString() === selectedCommission;
@@ -306,10 +312,12 @@ export default function AnnouncementsPage() {
                     <div className="flex gap-2">
                         {perms.announcements.can_archive && (
                             <>
-                            <Button variant="destructive" size="sm" onClick={() => handleDeactivateAnnouncement(selectedAnnouncement.id)}><Trash className="mr-2 h-4 w-4" /> Sil</Button>
-                            <Button variant="outline" size="sm" onClick={() => handleArchiveAnnouncement(selectedAnnouncement.id)}>
-                                {selectedAnnouncement.is_archived ? <ArchiveRestore className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />}
-                                {selectedAnnouncement.is_archived ? "Arşivden Çıkar" : "Arşivle"}
+                            <Button variant="destructive" size="sm" onClick={() => setIsDeleteDialogOpen(true)}>
+                              <Trash className="mr-2 h-4 w-4" /> Sil
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => setIsArchiveDialogOpen(true)}>
+                              {selectedAnnouncement.is_archived ? <ArchiveRestore className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />}
+                              {selectedAnnouncement.is_archived ? "Arşivden Çıkar" : "Arşivle"}
                             </Button>
                             </>
                         )}
@@ -389,6 +397,43 @@ export default function AnnouncementsPage() {
           )}
         </div>
       </div>
+      {selectedAnnouncement && (
+        <>
+          <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Arşivleme Onayı</DialogTitle>
+                <DialogDescription>
+                  "{selectedAnnouncement.title}" başlıklı duyuruyu {selectedAnnouncement.is_archived ? 'arşivden çıkarmak' : 'arşivlemek'} istediğinizden emin misiniz?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsArchiveDialogOpen(false)}>İptal</Button>
+                <Button onClick={() => handleArchiveAnnouncement(selectedAnnouncement.id)}>
+                  {selectedAnnouncement.is_archived ? 'Arşivden Çıkar' : 'Arşivle'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Silme Onayı</DialogTitle>
+                <DialogDescription>
+                  "{selectedAnnouncement.title}" başlıklı duyuruyu silmek istediğinizden emin misiniz?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>İptal</Button>
+                <Button variant="destructive" onClick={() => handleDeactivateAnnouncement(selectedAnnouncement.id)}>
+                  Sil
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }
