@@ -40,7 +40,6 @@ export default function NewAnnouncementPage() {
     useEffect(() => {
         if(authLoading) return;
 
-        // YETKİ KONTROLÜ (GÜNCELLENDİ)
         if (!perms.announcements.can_create) {
             toast({ title: "Yetkisiz Erişim", description: "Bu sayfayı görüntüleme yetkiniz yok.", variant: "destructive" });
             router.push("/announcements");

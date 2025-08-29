@@ -18,6 +18,7 @@ export async function fetchWithAuth<T>(url: string, options: RequestInit = {}): 
   }
   headers.set("Authorization", `Bearer ${access}`);
 
+  const finalUrl = `${API_BASE_URL}/${url.replace(/^\//, "")}`;
   let response = await fetch(`${API_BASE_URL}${url}`, {
     ...options,
     headers,
@@ -30,7 +31,7 @@ export async function fetchWithAuth<T>(url: string, options: RequestInit = {}): 
       window.location.href = "/login?session_expired=true"; // Yönlendirme sebebi eklendi
       throw new Error("Oturum süresi doldu, yenileme token'ı bulunamadı.");
     }
-    const refreshRes = await fetch(`http://localhost:8000/api/token/refresh/`, {
+    const refreshRes = await fetch(`${API_BASE_URL.replace('/api', '')}/api/token/refresh/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh }),
@@ -44,7 +45,7 @@ export async function fetchWithAuth<T>(url: string, options: RequestInit = {}): 
       }
 
       headers.set("Authorization", `Bearer ${access}`);
-      response = await fetch(`${API_BASE_URL}${url}`, {
+      response = await fetch(finalUrl, {
         ...options,
         headers,
       });

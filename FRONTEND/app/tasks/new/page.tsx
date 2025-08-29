@@ -105,7 +105,7 @@ export default function NewTaskPage() {
 
       await createTask(payload);
       toast({ title: "Görev oluşturuldu", description: "Kayıt başarılı." });
-      router.push(`/dashboard/${role}/tasks`);
+      router.push(`/tasks`);
     } catch (e: any) {
       setErr(e?.message || "Kaydedilemedi");
       toast({ title: "Hata", description: e?.message || "Kaydedilemedi", variant: "destructive" });
@@ -274,7 +274,7 @@ export default function NewTaskPage() {
 
           <CardFooter className="flex justify-between">
             <Button variant="outline" type="button" asChild>
-              <Link href={`/dashboard/${role}/tasks`}>İptal</Link>
+              <Link href={`/tasks`}>İptal</Link>
             </Button>
             <Button type="submit" disabled={!canCreate}>
               <Save className="mr-2 h-4 w-4" />

@@ -161,7 +161,7 @@ export default function EditTaskPage() {
 
       await updateTask(taskId, payload);
       toast({ title: "Görev güncellendi", description: "Değişiklikler kaydedildi." });
-      router.push(`/dashboard/${role}/tasks`);
+      router.push(`/tasks`);
     } catch (e: any) {
       setErr(e?.message || "Kaydedilemedi");
       toast({ title: "Hata", description: e?.message || "Kaydedilemedi", variant: "destructive" });
@@ -184,7 +184,7 @@ export default function EditTaskPage() {
       <div className="space-y-4">
         <div className="flex items-center">
           <Button variant="ghost" size="icon" asChild className="mr-2">
-            <Link href={`/dashboard/${role}/tasks`}><ArrowLeft className="h-5 w-5" /></Link>
+            <Link href={`/tasks`}><ArrowLeft className="h-5 w-5" /></Link>
           </Button>
         </div>
         <h1 className="text-3xl font-bold tracking-tight">Erişim Yok</h1>

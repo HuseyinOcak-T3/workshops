@@ -23,7 +23,7 @@ class AnnouncementSerializer(serializers.ModelSerializer):
     atelier_ids = serializers.PrimaryKeyRelatedField(
         source = "ateliers", queryset = Atelier.objects.all(), write_only = True, many = True, required = False
     )
-    read_count = serializers.SerializerMethodField()
+    read_count = serializers.IntegerField(read_only=True)
     total_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -40,24 +40,10 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         read_only_fields = ["slug", "created_at", "updated_at", "user"]
 
     def get_total_count(self, obj):
-        if obj.ateliers.exists():
-            return obj.ateliers.count()
+        if hasattr(obj, 'total_ateliers') and obj.total_ateliers > 0:
+            return obj.total_ateliers
         return Atelier.objects.filter(is_active=True).count()
 
-    def get_read_count(self, obj):
-        target_ateliers = obj.ateliers.all()
-        if not target_ateliers.exists():
-            target_ateliers = Atelier.objects.filter(is_active=True)
-
-        responsible_ids = target_ateliers.exclude(responsible__isnull=True).values_list('responsible_id', flat=True)
-
-        read_count = AnnouncementRead.objects.filter(
-            announcement=obj,
-            is_read=True,
-            user_id__in=responsible_ids
-        ).distinct().count()
-
-        return read_count
 
 class AnnouncementPermissionSerializer(serializers.ModelSerializer):
     class Meta:

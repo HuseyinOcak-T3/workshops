@@ -1,7 +1,11 @@
 from django.db import models
+from django.db.models import Count
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from .pagination import AnnouncementPagination
 from .models import Announcement, AnnouncementRead, AnnouncementPermission
 from .serializers import (
     AnnouncementSerializer, AnnouncementReadSerializer, AnnouncementPermissionSerializer
@@ -11,8 +15,16 @@ from rest_framework.exceptions import PermissionDenied
 from customuser.models import Atelier
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
-    queryset = Announcement.objects.select_related("user", "commission").prefetch_related("ateliers", "reads").all()
+    queryset = Announcement.objects.select_related("user", "commission").prefetch_related("ateliers", "reads").annotate(
+        read_count=Count('reads', distinct=True),
+        total_ateliers=Count('ateliers', distinct=True)
+    )
     serializer_class = AnnouncementSerializer
+
+    pagination_class = AnnouncementPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ['title', 'text']
+    filterset_fields = ['commission', 'is_archived', 'is_active']
 
     def get_queryset(self):
         user = self.request.user
@@ -20,14 +32,11 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         if not perms["can_view"]:
             return Announcement.objects.none()
 
-        own_ateliers = getattr(user, "ateliers", None)
-        if callable(own_ateliers):
-            own_ateliers = own_ateliers.all()
-        visible_ids = get_visible_ateliers_for(user, own_ateliers_qs=own_ateliers)
+        visible_ids = get_visible_ateliers_for(user)
 
         return self.queryset.filter(
             models.Q(ateliers__in=list(visible_ids))
-        ).distinct()
+        ).distinct().order_by('-publication_date')
 
     def perform_create(self, serializer):
         user = self.request.user

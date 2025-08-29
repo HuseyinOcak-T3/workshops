@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
-import { MessageSquare, PenSquare, Plus, Search, Trash, Loader2, AlertCircle, Eye, FileText, Archive, ArchiveRestore } from "lucide-react"
+import { MessageSquare, PenSquare, Plus, Search, Trash, Loader2, AlertCircle, Eye, FileText, Archive, ArchiveRestore, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { fetchWithAuth } from "@/lib/fetchWithAuth"
 import { useAuth } from "@/app/context/AuthContext"
@@ -32,6 +32,13 @@ interface Announcement {
   total_count: number;
 }
 
+interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 interface WorkshopReadStatus {
   id: number;
   name: string;
@@ -46,6 +53,7 @@ export default function AnnouncementsPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCommission, setSelectedCommission] = useState("all");
+  const [activeTab, setActiveTab] = useState('active');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
@@ -55,27 +63,45 @@ export default function AnnouncementsPage() {
   const [showWorkshops, setShowWorkshops] = useState(false);
   const [workshopReadStatus, setWorkshopReadStatus] = useState<WorkshopReadStatus[]>([]);
   const [loadingStatus, setLoadingStatus] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!perms.announcements.can_view) {
-      setLoading(false);
-      return;
+    if (authLoading || !perms.announcements.can_view) {
+        setLoading(false);
+        return;
     }
 
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [announcementsData, commissionsData] = await Promise.all([
-          fetchWithAuth<Announcement[]>("/announcements/"),
-          fetchWithAuth<Commission[]>("/commissions/"),
-        ]);
+        const params = new URLSearchParams();
+        params.append('page', page.toString());
+        if (searchTerm) params.append('search', searchTerm);
+        if (selectedCommission !== "all") params.append('commission', selectedCommission);
 
-        setAnnouncements(announcementsData);
-        setCommissions(commissionsData);
-        const firstActive = announcementsData.find((a) => a.is_active);
-        if (firstActive) {
-          setSelectedAnnouncement(firstActive);
+        if (activeTab === 'active') {
+            params.append('is_archived', 'false');
+            params.append('is_active', 'true');
+        } else if (activeTab === 'archived') {
+            params.append('is_archived', 'true');
+        }
+
+        const announcementsResponse = await fetchWithAuth<PaginatedResponse<Announcement>>(`/announcements/?${params.toString()}`);
+
+        setAnnouncements(announcementsResponse.results);
+        setTotalCount(announcementsResponse.count);
+        setTotalPages(Math.ceil(announcementsResponse.count / 15));
+        if (announcementsResponse.results.length > 0) {
+            setSelectedAnnouncement(announcementsResponse.results[0]);
+        } else {
+            setSelectedAnnouncement(null);
+        }
+
+        if (commissions.length === 0) {
+            const commissionsData = await fetchWithAuth<Commission[]>("/commissions/");
+            setCommissions(commissionsData);
         }
       } catch (error: any) {
         toast({ title: "Veri Yüklenemedi", description: error.message, variant: "destructive" });
@@ -84,7 +110,11 @@ export default function AnnouncementsPage() {
       }
     };
     fetchData();
-  }, [toast, perms.announcements.can_view, authLoading]);
+  }, [page, searchTerm, selectedCommission, activeTab, perms.announcements.can_view, authLoading, toast]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedCommission, activeTab]);
 
   useEffect(() => {
     if (selectedAnnouncement && user?.role?.code === 'workshop_responsible') {
@@ -234,11 +264,11 @@ export default function AnnouncementsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="md:col-span-1">
+        <Card className="md:col-span-1 flex flex-col">
           <CardHeader>
             <CardTitle>Duyuru Listesi</CardTitle>
           </CardHeader>
-          <CardContent className="px-0">
+          <CardContent className="px-0 flex-grow">
             <div className="px-4 pb-2 space-y-2">
                 <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -252,7 +282,7 @@ export default function AnnouncementsPage() {
                     </SelectContent>
                 </Select>
             </div>
-            <Tabs defaultValue="active" className="mt-2">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
               <div className="px-4"><TabsList className="grid w-full grid-cols-2"><TabsTrigger value="active">Aktif</TabsTrigger><TabsTrigger value="archived">Arşiv</TabsTrigger></TabsList></div>
               <TabsContent value="active" className="mt-0">
                 <div className="divide-y max-h-[calc(100vh-350px)] overflow-y-auto">
@@ -288,6 +318,28 @@ export default function AnnouncementsPage() {
               </TabsContent>
             </Tabs>
           </CardContent>
+
+          <CardFooter className="flex justify-between items-center p-2 border-t mt-auto">
+              <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1 || loading}
+              >
+                  <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                  Sayfa {page} / {totalPages > 0 ? totalPages : 1}
+              </span>
+              <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={page >= totalPages || loading}
+              >
+                  <ChevronRight className="h-4 w-4" />
+              </Button>
+           </CardFooter>
         </Card>
 
         <div className="md:col-span-2 space-y-6">

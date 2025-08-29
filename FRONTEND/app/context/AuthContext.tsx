@@ -10,6 +10,7 @@ interface BasePerms {
   can_create: boolean;
   can_update: boolean;
   can_archive: boolean;
+  can_view_stats: boolean;
 }
 
 interface AppPermissions {
@@ -39,7 +40,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const defaultPerms: AppPermissions = {
-  announcements: { can_view: false, can_create: false, can_update: false, can_archive: false },
+  announcements: { can_view: false, can_create: false, can_update: false, can_archive: false, can_view_stats: false },
   tasks: { can_view: false, can_create: false, can_update: false, can_archive: false },
 };
 
@@ -87,7 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         } catch (error) {
           console.error("Oturum başlatma hatası:", error);
-          logout(true); // Token geçersizse temizle ve login'e yolla
+          logout(true);
         }
       }
       setLoading(false);

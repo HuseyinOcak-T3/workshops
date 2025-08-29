@@ -17,7 +17,6 @@ import { fetchWithAuth } from "@/lib/fetchWithAuth"
 import { useAuth } from "@/app/context/AuthContext"
 import { Search } from "lucide-react"
 
-// Tipler
 interface Workshop { id: number; name: string; }
 interface Commission { id: number; name: string; }
 interface AnnouncementData {

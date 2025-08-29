@@ -1,6 +1,7 @@
 django
 djangorestframework
 django-cors-headers
+django-filter
 python-decouple
 psycopg2-binary>=2.9
 djangorestframework-simplejwt>=5.2

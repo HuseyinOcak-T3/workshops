@@ -124,10 +124,14 @@ class Announcement(models.Model):
     class Meta:
         verbose_name = "Duyuru"
         verbose_name_plural = "Duyurular"
-        ordering = ['-publication_date']
+        ordering = ['publication_date']
         permissions = (
             ("deactivate_announcement", "Duyuruyu pasife alma izni"),
         )
+
+        indexes = [
+            models.Index(fields=['publication_date']),
+        ]
 
     def __str__(self):
         return self.title
